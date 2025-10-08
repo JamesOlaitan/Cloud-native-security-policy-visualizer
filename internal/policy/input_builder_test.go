@@ -34,7 +34,9 @@ func TestBuildInput(t *testing.T) {
 		Kind:  ingest.EdgeTrustsCrossAccount,
 		Props: map[string]string{},
 	}
-	g.AddEdge(trustEdge)
+	if err := g.AddEdge(trustEdge); err != nil {
+		t.Fatalf("Failed to add trust edge: %v", err)
+	}
 
 	// Add policy with wildcard
 	policy := ingest.Node{
@@ -62,7 +64,9 @@ func TestBuildInput(t *testing.T) {
 		Kind:  ingest.EdgeAllowsAction,
 		Props: map[string]string{},
 	}
-	g.AddEdge(permEdge)
+	if err := g.AddEdge(permEdge); err != nil {
+		t.Fatalf("Failed to add permission edge: %v", err)
+	}
 
 	// Add K8s cluster-admin binding
 	k8sRole := ingest.Node{
@@ -92,7 +96,9 @@ func TestBuildInput(t *testing.T) {
 			"binding": "test-binding",
 		},
 	}
-	g.AddEdge(bindingEdge)
+	if err := g.AddEdge(bindingEdge); err != nil {
+		t.Fatalf("Failed to add binding edge: %v", err)
+	}
 
 	// Build input
 	input := BuildInput(g)

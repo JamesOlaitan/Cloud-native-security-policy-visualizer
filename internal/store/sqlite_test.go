@@ -46,7 +46,9 @@ func TestStoreRoundTrip(t *testing.T) {
 		Props: map[string]string{"prop": "val"},
 	}
 
-	g.AddEdge(edge)
+	if addErr := g.AddEdge(edge); addErr != nil {
+		t.Fatalf("Failed to add edge to graph: %v", addErr)
+	}
 
 	// Save snapshot
 	err = store.SaveSnapshot("test-snapshot", "test-label", g)

@@ -121,7 +121,7 @@ export default function GraphPane({ centerNode, neighbors, pathData, onNodeClick
         rankDir: 'LR',
         nodeSep: 50,
         rankSep: 100,
-      },
+      } as any,
     })
 
     // Add click handler

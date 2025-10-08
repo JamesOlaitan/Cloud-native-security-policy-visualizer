@@ -40,9 +40,15 @@ subjects:
   namespace: default
 `
 
-	os.WriteFile(filepath.Join(tmpDir, "serviceaccounts.yaml"), []byte(saYAML), 0644)
-	os.WriteFile(filepath.Join(tmpDir, "clusterroles.yaml"), []byte(roleYAML), 0644)
-	os.WriteFile(filepath.Join(tmpDir, "rolebindings.yaml"), []byte(bindingYAML), 0644)
+	if err := os.WriteFile(filepath.Join(tmpDir, "serviceaccounts.yaml"), []byte(saYAML), 0644); err != nil {
+		t.Fatalf("Failed to write test serviceaccounts.yaml: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "clusterroles.yaml"), []byte(roleYAML), 0644); err != nil {
+		t.Fatalf("Failed to write test clusterroles.yaml: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "rolebindings.yaml"), []byte(bindingYAML), 0644); err != nil {
+		t.Fatalf("Failed to write test rolebindings.yaml: %v", err)
+	}
 
 	result, err := ParseK8s(tmpDir)
 	if err != nil {

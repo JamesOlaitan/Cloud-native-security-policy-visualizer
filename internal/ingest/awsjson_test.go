@@ -44,9 +44,15 @@ func TestParseAWS(t *testing.T) {
 		}]
 	}]`
 
-	os.WriteFile(filepath.Join(tmpDir, "roles.json"), []byte(rolesJSON), 0644)
-	os.WriteFile(filepath.Join(tmpDir, "policies.json"), []byte(policiesJSON), 0644)
-	os.WriteFile(filepath.Join(tmpDir, "attachments.json"), []byte(attachmentsJSON), 0644)
+	if err := os.WriteFile(filepath.Join(tmpDir, "roles.json"), []byte(rolesJSON), 0644); err != nil {
+		t.Fatalf("Failed to write test roles.json: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "policies.json"), []byte(policiesJSON), 0644); err != nil {
+		t.Fatalf("Failed to write test policies.json: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "attachments.json"), []byte(attachmentsJSON), 0644); err != nil {
+		t.Fatalf("Failed to write test attachments.json: %v", err)
+	}
 
 	result, err := ParseAWS(tmpDir)
 	if err != nil {
