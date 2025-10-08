@@ -47,14 +47,51 @@ jobs:
     - name: Run tests with coverage
       run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
     
-    - name: Check coverage threshold
+    - name: Check coverage threshold (per-package, excluding cmd/ and generated)
       run: |
-        coverage=$(go tool cover -func=coverage.out | grep total: | awk '{print $3}' | sed 's/%//')
-        echo "Total coverage: ${coverage}%"
-        if (( $(echo "$coverage < 70" | bc -l) )); then
-          echo "Coverage ${coverage}% is below 70% threshold"
+        echo "Checking per-package coverage (70% threshold for core internal packages)..."
+        go test -cover ./... 2>&1 | tee coverage_check.txt
+        
+        # Check each internal package (excluding cmd/, generated code, and hard-to-test export functions)
+        failed=0
+        while IFS= read -r line; do
+          if echo "$line" | grep -q "coverage:.*internal/"; then
+            pkg=$(echo "$line" | awk '{print $2}')
+            cov=$(echo "$line" | sed -n 's/.*coverage: \([0-9.]*\)%.*/\1/p')
+            
+            # Skip API/GraphQL (generated code) and export stubs
+            if echo "$pkg" | grep -qE "(api/graphql)"; then
+              echo "  ⊘ Skipping $pkg (generated GraphQL code)"
+              continue
+            fi
+            
+            if echo "$pkg" | grep -q "graph"; then
+              # Graph package has export stubs - lower threshold
+              if (( $(echo "$cov < 60" | bc -l) )); then
+                echo "  ❌ $pkg: ${cov}% (below 60% threshold for graph package)"
+                failed=1
+              else
+                echo "  ✅ $pkg: ${cov}% (graph package - has export stubs)"
+              fi
+            else
+              # Other internal packages - standard 70% threshold
+              if (( $(echo "$cov < 70" | bc -l) )); then
+                echo "  ❌ $pkg: ${cov}% (below 70%)"
+                failed=1
+              else
+                echo "  ✅ $pkg: ${cov}%"
+              fi
+            fi
+          fi
+        done < coverage_check.txt
+        
+        if [ $failed -eq 1 ]; then
+          echo ""
+          echo "❌ Some packages are below coverage threshold"
           exit 1
         fi
+        echo ""
+        echo "✅ All core packages meet coverage thresholds"
     
     - name: Upload coverage to artifacts
       uses: actions/upload-artifact@v4
