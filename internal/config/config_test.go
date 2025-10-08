@@ -58,4 +58,3 @@ func TestLoadWithEnv(t *testing.T) {
 		t.Errorf("Expected custom port, got %s", cfg.Port)
 	}
 }
-

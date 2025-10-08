@@ -274,11 +274,9 @@ func (r *nodeResolver) Neighbors(ctx context.Context, obj *Node, kinds []*string
 	}
 
 	kindFilter := []ingest.Kind{}
-	if kinds != nil {
-		for _, k := range kinds {
-			if k != nil {
-				kindFilter = append(kindFilter, ingest.Kind(*k))
-			}
+	for _, k := range kinds {
+		if k != nil {
+			kindFilter = append(kindFilter, ingest.Kind(*k))
 		}
 	}
 
@@ -319,4 +317,3 @@ func nodeToGraphQL(node ingest.Node) *Node {
 func edgeKey(edge ingest.Edge) string {
 	return strings.Join([]string{edge.Src, edge.Dst, edge.Kind}, "|")
 }
-

@@ -7,9 +7,9 @@ import (
 
 func TestRedact(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    string
-		contains string
+		name        string
+		input       string
+		contains    string
 		notContains string
 	}{
 		{
@@ -49,4 +49,3 @@ func TestRedact(t *testing.T) {
 		})
 	}
 }
-

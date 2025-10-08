@@ -31,13 +31,13 @@ type Edge struct {
 
 // EdgeKind constants
 const (
-	EdgeAssumesRole          = "ASSUMES_ROLE"
-	EdgeTrustsCrossAccount   = "TRUSTS_CROSS_ACCOUNT"
-	EdgeAttachedPolicy       = "ATTACHED_POLICY"
-	EdgeAllowsAction         = "ALLOWS_ACTION"
-	EdgeAppliesTo            = "APPLIES_TO"
-	EdgeBindsTo              = "BINDS_TO"
-	EdgeInNamespace          = "IN_NAMESPACE"
+	EdgeAssumesRole        = "ASSUMES_ROLE"
+	EdgeTrustsCrossAccount = "TRUSTS_CROSS_ACCOUNT"
+	EdgeAttachedPolicy     = "ATTACHED_POLICY"
+	EdgeAllowsAction       = "ALLOWS_ACTION"
+	EdgeAppliesTo          = "APPLIES_TO"
+	EdgeBindsTo            = "BINDS_TO"
+	EdgeInNamespace        = "IN_NAMESPACE"
 )
 
 // ParseResult holds parsed nodes and edges
@@ -51,4 +51,3 @@ func (pr *ParseResult) Merge(other ParseResult) {
 	pr.Nodes = append(pr.Nodes, other.Nodes...)
 	pr.Edges = append(pr.Edges, other.Edges...)
 }
-

@@ -80,3 +80,13 @@ deps:
 	go install github.com/securego/gosec/v2/cmd/gosec@latest
 	@echo "Dependencies installed!"
 
+# Fix dependency issues
+fix:
+	@echo "Fixing dependencies..."
+	go clean -modcache
+	go mod download
+	go mod tidy
+	go mod verify
+	cd ui && npm install && cd ..
+	@echo "Dependencies fixed!"
+

@@ -53,7 +53,7 @@ func (s *Store) SaveSnapshot(id, label string, g *graph.Graph) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	// Insert snapshot
 	createdAt := time.Now().UTC().Format(time.RFC3339)
@@ -116,13 +116,13 @@ func (s *Store) LoadSnapshot(id string) (*graph.Graph, error) {
 		var labelsJSON, propsJSON string
 		var kind string
 
-		if err := rows.Scan(&node.ID, &kind, &labelsJSON, &propsJSON); err != nil {
-			return nil, err
+		if err2 := rows.Scan(&node.ID, &kind, &labelsJSON, &propsJSON); err2 != nil {
+			return nil, err2
 		}
 
 		node.Kind = ingest.Kind(kind)
-		json.Unmarshal([]byte(labelsJSON), &node.Labels)
-		json.Unmarshal([]byte(propsJSON), &node.Props)
+		_ = json.Unmarshal([]byte(labelsJSON), &node.Labels)
+		_ = json.Unmarshal([]byte(propsJSON), &node.Props)
 
 		g.AddNode(node)
 	}
@@ -145,7 +145,7 @@ func (s *Store) LoadSnapshot(id string) (*graph.Graph, error) {
 			return nil, err
 		}
 
-		json.Unmarshal([]byte(propsJSON), &edge.Props)
+		_ = json.Unmarshal([]byte(propsJSON), &edge.Props)
 
 		if err := g.AddEdge(edge); err != nil {
 			// Skip edges with missing nodes
@@ -250,8 +250,8 @@ func (s *Store) SearchPrincipals(snapshotID, query string, limit int) ([]ingest.
 		}
 
 		node.Kind = ingest.Kind(kind)
-		json.Unmarshal([]byte(labelsJSON), &node.Labels)
-		json.Unmarshal([]byte(propsJSON), &node.Props)
+		_ = json.Unmarshal([]byte(labelsJSON), &node.Labels)
+		_ = json.Unmarshal([]byte(propsJSON), &node.Props)
 
 		nodes = append(nodes, node)
 	}
@@ -274,8 +274,8 @@ func (s *Store) GetNode(snapshotID, nodeID string) (*ingest.Node, error) {
 	}
 
 	node.Kind = ingest.Kind(kind)
-	json.Unmarshal([]byte(labelsJSON), &node.Labels)
-	json.Unmarshal([]byte(propsJSON), &node.Props)
+	_ = json.Unmarshal([]byte(labelsJSON), &node.Labels)
+	_ = json.Unmarshal([]byte(propsJSON), &node.Props)
 
 	return &node, nil
 }
@@ -300,10 +300,9 @@ func (s *Store) GetEdges(snapshotID string) ([]ingest.Edge, error) {
 			return nil, err
 		}
 
-		json.Unmarshal([]byte(propsJSON), &edge.Props)
+		_ = json.Unmarshal([]byte(propsJSON), &edge.Props)
 		edges = append(edges, edge)
 	}
 
 	return edges, nil
 }
-

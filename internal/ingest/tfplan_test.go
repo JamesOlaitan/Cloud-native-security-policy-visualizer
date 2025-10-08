@@ -96,4 +96,3 @@ func TestContains(t *testing.T) {
 		t.Error("Expected contains not to find 'd'")
 	}
 }
-

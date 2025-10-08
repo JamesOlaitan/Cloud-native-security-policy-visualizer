@@ -145,7 +145,7 @@ func parseRoles(path string) (ParseResult, error) {
 					matches := accountIDPattern.FindStringSubmatch(p)
 					if len(matches) > 1 {
 						accountID := matches[1]
-						
+
 						// Check if it's cross-account
 						roleAccountMatches := accountIDPattern.FindStringSubmatch(role.Arn)
 						if len(roleAccountMatches) > 1 && roleAccountMatches[1] != accountID {
@@ -304,7 +304,7 @@ func parseAttachments(path string) (ParseResult, error) {
 		for _, policy := range attachment.AttachedPolicies {
 			// Extract account from role name (assuming standard format)
 			roleArn := fmt.Sprintf("arn:aws:iam::111111111111:role/%s", attachment.RoleName)
-			
+
 			result.Edges = append(result.Edges, Edge{
 				Src:  roleArn,
 				Dst:  policy.PolicyArn,
@@ -336,4 +336,3 @@ func parseStringOrArray(raw json.RawMessage) []string {
 
 	return result
 }
-

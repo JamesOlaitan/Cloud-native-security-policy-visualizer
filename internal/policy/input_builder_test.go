@@ -152,4 +152,3 @@ func TestBuildInput(t *testing.T) {
 		t.Error("Expected cluster_admin to be true")
 	}
 }
-

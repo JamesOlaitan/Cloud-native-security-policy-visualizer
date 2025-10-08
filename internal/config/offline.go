@@ -52,4 +52,3 @@ func EnableOfflineMode() {
 		wrapped: http.DefaultTransport,
 	}
 }
-

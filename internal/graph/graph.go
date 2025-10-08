@@ -226,7 +226,7 @@ func (g *Graph) BFS(startID string, maxDepth int) ([]ingest.Node, error) {
 		},
 	}
 
-	bfs.Walk(g.g, startNode, func(n graph.Node) bool {
+	bfs.Walk(g.g, startNode, func(n graph.Node, d int) bool {
 		if !visited[n.ID()] {
 			visited[n.ID()] = true
 			nodeID := g.nodesByID[n.ID()]
@@ -237,4 +237,3 @@ func (g *Graph) BFS(startID string, maxDepth int) ([]ingest.Node, error) {
 
 	return result, nil
 }
-

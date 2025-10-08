@@ -6,6 +6,7 @@ import (
 	"context"
 
 	"github.com/99designs/gqlgen/graphql"
+	"github.com/vektah/gqlparser/v2/ast"
 )
 
 type Config struct {
@@ -40,8 +41,8 @@ func NewExecutableSchema(cfg Config) graphql.ExecutableSchema {
 	}
 }
 
-func (e *executableSchema) Schema() *graphql.Schema {
-	// Simplified stub - in real implementation, this would parse the schema
+func (e *executableSchema) Schema() *ast.Schema {
+	// Simplified stub - returns AST schema
 	return nil
 }
 
@@ -55,4 +56,3 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		return &graphql.Response{}
 	}
 }
-

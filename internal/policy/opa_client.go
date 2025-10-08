@@ -67,4 +67,3 @@ func (c *Client) Evaluate(input map[string]interface{}) ([]Finding, error) {
 
 	return opaResp.Result.Violations, nil
 }
-

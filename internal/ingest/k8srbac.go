@@ -107,9 +107,9 @@ func parseK8sResource(resource K8sResource) ParseResult {
 			})
 
 			result.Edges = append(result.Edges, Edge{
-				Src:  fmt.Sprintf("k8s:sa:%s:%s", resource.Metadata.Namespace, resource.Metadata.Name),
-				Dst:  fmt.Sprintf("k8s:ns:%s", resource.Metadata.Namespace),
-				Kind: EdgeInNamespace,
+				Src:   fmt.Sprintf("k8s:sa:%s:%s", resource.Metadata.Namespace, resource.Metadata.Name),
+				Dst:   fmt.Sprintf("k8s:ns:%s", resource.Metadata.Namespace),
+				Kind:  EdgeInNamespace,
 				Props: map[string]string{},
 			})
 		}
@@ -121,7 +121,7 @@ func parseK8sResource(resource K8sResource) ParseResult {
 		}
 
 		isClusterAdmin := resource.Metadata.Name == "cluster-admin"
-		
+
 		result.Nodes = append(result.Nodes, Node{
 			ID:     roleID,
 			Kind:   KindRole,
@@ -137,9 +137,9 @@ func parseK8sResource(resource K8sResource) ParseResult {
 			for _, verb := range rule.Verbs {
 				for _, res := range rule.Resources {
 					permID := fmt.Sprintf("%s#rule%d#%s#%s", roleID, i, verb, res)
-					
+
 					isWildcard := verb == "*" || res == "*"
-					
+
 					result.Nodes = append(result.Nodes, Node{
 						ID:     permID,
 						Kind:   KindPerm,
@@ -211,4 +211,3 @@ func parseK8sResource(resource K8sResource) ParseResult {
 
 	return result
 }
-

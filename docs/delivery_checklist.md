@@ -105,7 +105,7 @@ This checklist covers **Phase 1 only**: offline ingestion of AWS IAM and Kuberne
 - ✅ `.github/ISSUE_TEMPLATE/bug_report.md` - Bug report template
 - ✅ `.github/ISSUE_TEMPLATE/feature_request.md` - Feature request template
 
-## 🎯 Definition of Done - Acceptance Criteria
+## 🎯 Acceptance Criteria
 
 ### Automated Tests
 

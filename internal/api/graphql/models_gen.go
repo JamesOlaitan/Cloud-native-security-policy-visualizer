@@ -60,4 +60,3 @@ type SnapshotDiff struct {
 	RemovedEdges []*Edge      `json:"removedEdges"`
 	Summary      *DiffSummary `json:"summary"`
 }
-

@@ -46,16 +46,16 @@ func TestGraphOperations(t *testing.T) {
 
 	// Add edges
 	edge1 := ingest.Edge{
-		Src:  "node1",
-		Dst:  "node2",
-		Kind: ingest.EdgeAttachedPolicy,
+		Src:   "node1",
+		Dst:   "node2",
+		Kind:  ingest.EdgeAttachedPolicy,
 		Props: map[string]string{},
 	}
 
 	edge2 := ingest.Edge{
-		Src:  "node2",
-		Dst:  "node3",
-		Kind: ingest.EdgeAppliesTo,
+		Src:   "node2",
+		Dst:   "node3",
+		Kind:  ingest.EdgeAppliesTo,
 		Props: map[string]string{},
 	}
 
@@ -137,4 +137,3 @@ func TestGraphMissingNode(t *testing.T) {
 		t.Error("Expected error for path with no connection")
 	}
 }
-

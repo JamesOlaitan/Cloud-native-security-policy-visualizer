@@ -42,4 +42,3 @@ func Load() *Config {
 		Port:       port,
 	}
 }
-

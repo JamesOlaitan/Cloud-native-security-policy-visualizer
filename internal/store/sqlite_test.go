@@ -158,4 +158,3 @@ func TestSearchPrincipals(t *testing.T) {
 		t.Errorf("Expected ID %s, got %s", node.ID, results[0].ID)
 	}
 }
-

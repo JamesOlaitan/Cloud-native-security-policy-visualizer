@@ -121,8 +121,13 @@ make lint        # Run linter
 make sec         # Run security scanner
 make ui          # Build UI
 make generate    # Generate GraphQL code
+make fix         # Fix dependency issues
 make clean       # Clean build artifacts
 ```
+
+### Troubleshooting
+
+If you encounter build or linter errors, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for solutions.
 
 ### Run Tests
 
@@ -216,6 +221,7 @@ Comprehensive documentation for Phase 1:
 - **[Implementation Summary](docs/implementation_summary.md)** - Detailed technical overview of all components
 - **[Delivery Checklist](docs/delivery_checklist.md)** - Complete verification of Phase 1 requirements
 - **[Phase 1 Status](docs/status_phase1.md)** - Current capabilities, limitations, and next steps
+- **[Troubleshooting Guide](TROUBLESHOOTING.md)** - Solutions for common build and runtime issues
 - **[Contributing Guide](CONTRIBUTING.md)** - How to contribute to the project
 - **[Changelog](CHANGELOG.md)** - Version history and release notes
 

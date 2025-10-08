@@ -79,4 +79,3 @@ subjects:
 		t.Error("Expected binding edge")
 	}
 }
-

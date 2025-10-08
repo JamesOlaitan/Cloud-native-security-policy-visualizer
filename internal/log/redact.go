@@ -6,9 +6,9 @@ import (
 )
 
 var (
-	arnPattern        = regexp.MustCompile(`arn:aws:[a-z0-9\-]+:[a-z0-9\-]*:\d{12}:[^\s]+`)
-	accountIDPattern  = regexp.MustCompile(`\d{12}`)
-	secretPattern     = regexp.MustCompile(`(?i)(secret|password|token|key)[\s:=]+[^\s]+`)
+	arnPattern       = regexp.MustCompile(`arn:aws:[a-z0-9\-]+:[a-z0-9\-]*:\d{12}:[^\s]+`)
+	accountIDPattern = regexp.MustCompile(`\d{12}`)
+	secretPattern    = regexp.MustCompile(`(?i)(secret|password|token|key)[\s:=]+[^\s]+`)
 )
 
 // Redact masks sensitive information in log messages
@@ -36,4 +36,3 @@ func Redact(msg string) string {
 
 	return msg
 }
-

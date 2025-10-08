@@ -58,4 +58,3 @@ func TestIsLocalhost(t *testing.T) {
 		})
 	}
 }
-
