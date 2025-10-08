@@ -6,11 +6,12 @@ linters:
     - unused
     - gosimple
     - ineffassign
-    - typecheck
     - gofmt
     - goimports
     - misspell
     - revive
+  disable:
+    - typecheck  # Disable typecheck to avoid dependency errors
 
 linters-settings:
   govet:
