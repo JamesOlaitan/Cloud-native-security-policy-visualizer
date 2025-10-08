@@ -14,13 +14,21 @@ linters:
 
 linters-settings:
   govet:
-    check-shadowing: true
+    enable:
+      - shadow
   gofmt:
     simplify: true
   revive:
     confidence: 0.8
 
 issues:
+  exclude-use-default: true
+  exclude-dirs:
+    - vendor
+    - ui
+    - deployments
+  max-issues-per-linter: 0
+  max-same-issues: 0
   exclude-rules:
     - path: _test\.go
       linters:
@@ -36,4 +44,5 @@ run:
     - vendor
     - ui
     - deployments
+  modules-download-mode: readonly
 
