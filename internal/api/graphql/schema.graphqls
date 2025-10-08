@@ -1,0 +1,69 @@
+type KV {
+  key: String!
+  value: String!
+}
+
+type Edge {
+  from: ID!
+  to: ID!
+  kind: String!
+}
+
+type Neighbor {
+  id: ID!
+  kind: String!
+  labels: [String!]!
+  edgeKind: String!
+}
+
+type Node {
+  id: ID!
+  kind: String!
+  labels: [String!]!
+  props: [KV!]!
+  neighbors(kinds: [String!]): [Neighbor!]!
+}
+
+type Path {
+  nodes: [Node!]!
+  edges: [Edge!]!
+}
+
+type Finding {
+  id: ID!
+  ruleId: String!
+  severity: String!
+  entityRef: String!
+  reason: String!
+  remediation: String!
+}
+
+type Snapshot {
+  id: ID!
+  createdAt: String!
+  label: String
+  nodeCount: Int!
+  edgeCount: Int!
+}
+
+type DiffSummary {
+  added: Int!
+  removed: Int!
+  changed: Int!
+}
+
+type SnapshotDiff {
+  addedEdges: [Edge!]!
+  removedEdges: [Edge!]!
+  summary: DiffSummary!
+}
+
+type Query {
+  searchPrincipals(query: String!, limit: Int): [Node!]!
+  node(id: ID!): Node
+  shortestPath(from: ID!, to: ID!, maxHops: Int): Path
+  findings(snapshotId: ID!): [Finding!]!
+  snapshots: [Snapshot!]!
+  snapshotDiff(a: ID!, b: ID!): SnapshotDiff!
+}
+

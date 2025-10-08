@@ -1,0 +1,22 @@
+[
+  {
+    "PolicyName": "DevDataAccess",
+    "Arn": "arn:aws:iam::111111111111:policy/DevDataAccess",
+    "PolicyVersion": {
+      "Document": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": "s3:*",
+            "Resource": [
+              "arn:aws:s3:::data-bkt",
+              "arn:aws:s3:::data-bkt/*"
+            ]
+          }
+        ]
+      }
+    }
+  }
+]
+

@@ -1,0 +1,39 @@
+linters:
+  enable:
+    - govet
+    - errcheck
+    - staticcheck
+    - unused
+    - gosimple
+    - ineffassign
+    - typecheck
+    - gofmt
+    - goimports
+    - misspell
+    - revive
+
+linters-settings:
+  govet:
+    check-shadowing: true
+  gofmt:
+    simplify: true
+  revive:
+    confidence: 0.8
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+    - path: cmd/
+      linters:
+        - revive
+
+run:
+  timeout: 5m
+  tests: true
+  skip-dirs:
+    - vendor
+    - ui
+    - deployments
+

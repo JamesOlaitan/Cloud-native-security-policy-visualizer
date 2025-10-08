@@ -1,0 +1,27 @@
+{
+  "roles": {
+    "arn:aws:iam::111111111111:role/DevRole": {
+      "arn": "arn:aws:iam::111111111111:role/DevRole",
+      "name": "DevRole",
+      "trust": {
+        "cross_account": true
+      }
+    }
+  },
+  "policies": {
+    "arn:aws:iam::111111111111:policy/DevDataAccess": {
+      "id": "arn:aws:iam::111111111111:policy/DevDataAccess",
+      "name": "DevDataAccess",
+      "action_matches_wildcard": true
+    }
+  },
+  "k8s": {
+    "bindings": {
+      "k8s:binding:ci-cluster-admin": {
+        "name": "ci-cluster-admin",
+        "cluster_admin": true
+      }
+    }
+  }
+}
+

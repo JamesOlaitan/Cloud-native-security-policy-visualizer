@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  opa:
+    build:
+      context: .
+      dockerfile: deployments/docker/opa.Dockerfile
+    container_name: accessgraph-opa
+    ports:
+      - "8181:8181"
+    networks:
+      - accessgraph
+
+  api:
+    build:
+      context: .
+      dockerfile: deployments/docker/api.Dockerfile
+    container_name: accessgraph-api
+    ports:
+      - "8080:8080"
+    environment:
+      - OFFLINE=true
+      - OPA_URL=http://opa:8181/v1/data/accessgraph
+      - SQLITE_PATH=/data/graph.db
+      - PORT=8080
+    volumes:
+      - ./data:/data
+      - ./sample:/sample:ro
+    depends_on:
+      - opa
+    networks:
+      - accessgraph
+
+  ui:
+    build:
+      context: .
+      dockerfile: deployments/docker/ui.Dockerfile
+    container_name: accessgraph-ui
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_GRAPHQL_URL=http://localhost:8080/query
+    depends_on:
+      - api
+    networks:
+      - accessgraph
+
+networks:
+  accessgraph:
+    driver: bridge
+
+volumes:
+  data:
+

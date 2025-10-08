@@ -1,0 +1,38 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.5.0",
+  "planned_values": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_iam_policy.expanded_access",
+          "mode": "managed",
+          "type": "aws_iam_policy",
+          "name": "expanded_access",
+          "values": {
+            "name": "ExpandedDataAccess",
+            "policy": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":\"s3:*\",\"Resource\":[\"arn:aws:s3:::data-bkt\",\"arn:aws:s3:::data-bkt/*\"]}]}"
+          }
+        }
+      ]
+    }
+  },
+  "resource_changes": [
+    {
+      "address": "aws_iam_policy.data_access",
+      "mode": "managed",
+      "type": "aws_iam_policy",
+      "name": "data_access",
+      "change": {
+        "actions": ["update"],
+        "before": {
+          "policy": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":\"s3:GetObject\",\"Resource\":[\"arn:aws:s3:::data-bkt/*\"]}]}"
+        },
+        "after": {
+          "policy": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":\"s3:*\",\"Resource\":[\"arn:aws:s3:::data-bkt\",\"arn:aws:s3:::data-bkt/*\"]}]}"
+        }
+      }
+    }
+  ]
+}
+

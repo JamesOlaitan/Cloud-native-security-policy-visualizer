@@ -1,0 +1,12 @@
+[
+  {
+    "RoleName": "DevRole",
+    "AttachedPolicies": [
+      {
+        "PolicyName": "DevDataAccess",
+        "PolicyArn": "arn:aws:iam::111111111111:policy/DevDataAccess"
+      }
+    ]
+  }
+]
+

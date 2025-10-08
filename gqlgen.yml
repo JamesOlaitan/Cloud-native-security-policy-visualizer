@@ -1,0 +1,40 @@
+# GraphQL schema location
+schema:
+  - internal/api/graphql/*.graphqls
+
+# Generated resolver code
+exec:
+  filename: internal/api/graphql/generated.go
+  package: graphql
+
+# Generated model code
+model:
+  filename: internal/api/graphql/models_gen.go
+  package: graphql
+
+# Resolver implementation file
+resolver:
+  layout: follow-schema
+  dir: internal/api/graphql
+  package: graphql
+  filename_template: "{name}.resolvers.go"
+
+# Skip code generation for these types (we'll use custom implementations)
+models:
+  ID:
+    model:
+      - github.com/99designs/gqlgen/graphql.ID
+  Int:
+    model:
+      - github.com/99designs/gqlgen/graphql.Int
+  String:
+    model:
+      - github.com/99designs/gqlgen/graphql.String
+  Boolean:
+    model:
+      - github.com/99designs/gqlgen/graphql.Boolean
+
+# Autobind tells gqlgen to search for types in these packages
+autobind:
+  - github.com/jamesolaitan/accessgraph/internal/api/graphql
+
