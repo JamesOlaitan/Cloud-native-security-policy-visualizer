@@ -25,10 +25,10 @@ vendor/
 *.sqlite
 *.sqlite3
 
-# Build artifacts
-accessgraph-api
-accessgraph-ingest
-accessgraph-cli
+# Build artifacts (binaries in root, not cmd/)
+/accessgraph-api
+/accessgraph-ingest
+/accessgraph-cli
 
 # IDEs
 .idea/
