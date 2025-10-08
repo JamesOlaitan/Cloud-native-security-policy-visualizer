@@ -1,3 +1,6 @@
+# golangci-lint configuration
+# Version: 1.61+ compatible
+
 linters:
   enable:
     - govet
@@ -10,8 +13,8 @@ linters:
     - goimports
     - misspell
     - revive
-  disable:
-    - typecheck  # Disable typecheck to avoid dependency errors
+  # Note: typecheck is NOT enabled - Go compiler handles type checking
+  # This avoids false positives from dependency version mismatches
 
 linters-settings:
   govet:
@@ -46,4 +49,3 @@ run:
     - ui
     - deployments
   modules-download-mode: readonly
-
