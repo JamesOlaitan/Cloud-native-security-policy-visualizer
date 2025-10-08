@@ -3,6 +3,7 @@
 # Build all binaries
 build:
 	@echo "Building binaries..."
+	@mkdir -p bin
 	go build -o bin/accessgraph-api ./cmd/accessgraph-api
 	go build -o bin/accessgraph-ingest ./cmd/accessgraph-ingest
 	go build -o bin/accessgraph-cli ./cmd/accessgraph-cli
