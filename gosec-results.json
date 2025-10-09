@@ -1,0 +1,188 @@
+{
+	"Golang errors": {},
+	"Issues": [
+		{
+			"severity": "MEDIUM",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "22",
+				"url": "https://cwe.mitre.org/data/definitions/22.html"
+			},
+			"rule_id": "G304",
+			"details": "Potential file inclusion via variable",
+			"file": "/Users/jamesolaitan/Documents/GitHub/Cloud-native-security-policy-visualizer/internal/ingest/tfplan.go",
+			"code": "43: \n44: \tdata, err := os.ReadFile(path)\n45: \tif err != nil {\n",
+			"line": "44",
+			"column": "15",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "MEDIUM",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "22",
+				"url": "https://cwe.mitre.org/data/definitions/22.html"
+			},
+			"rule_id": "G304",
+			"details": "Potential file inclusion via variable",
+			"file": "/Users/jamesolaitan/Documents/GitHub/Cloud-native-security-policy-visualizer/internal/ingest/k8srbac.go",
+			"code": "61: \n62: \t\tdata, err := os.ReadFile(path)\n63: \t\tif err != nil {\n",
+			"line": "62",
+			"column": "16",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "MEDIUM",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "22",
+				"url": "https://cwe.mitre.org/data/definitions/22.html"
+			},
+			"rule_id": "G304",
+			"details": "Potential file inclusion via variable",
+			"file": "/Users/jamesolaitan/Documents/GitHub/Cloud-native-security-policy-visualizer/internal/ingest/awsjson.go",
+			"code": "292: \n293: \tdata, err := os.ReadFile(path)\n294: \tif err != nil {\n",
+			"line": "293",
+			"column": "15",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "MEDIUM",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "22",
+				"url": "https://cwe.mitre.org/data/definitions/22.html"
+			},
+			"rule_id": "G304",
+			"details": "Potential file inclusion via variable",
+			"file": "/Users/jamesolaitan/Documents/GitHub/Cloud-native-security-policy-visualizer/internal/ingest/awsjson.go",
+			"code": "197: \n198: \tdata, err := os.ReadFile(path)\n199: \tif err != nil {\n",
+			"line": "198",
+			"column": "15",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "MEDIUM",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "22",
+				"url": "https://cwe.mitre.org/data/definitions/22.html"
+			},
+			"rule_id": "G304",
+			"details": "Potential file inclusion via variable",
+			"file": "/Users/jamesolaitan/Documents/GitHub/Cloud-native-security-policy-visualizer/internal/ingest/awsjson.go",
+			"code": "89: \n90: \tdata, err := os.ReadFile(path)\n91: \tif err != nil {\n",
+			"line": "90",
+			"column": "15",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "MEDIUM",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "276",
+				"url": "https://cwe.mitre.org/data/definitions/276.html"
+			},
+			"rule_id": "G306",
+			"details": "Expect WriteFile permissions to be 0600 or less",
+			"file": "/Users/jamesolaitan/Documents/GitHub/Cloud-native-security-policy-visualizer/cmd/accessgraph-cli/main.go",
+			"code": "489: \t\tif *outFile != \"\" {\n490: \t\t\tif err := os.WriteFile(*outFile, data, 0644); err != nil {\n491: \t\t\t\tlog.Fatalf(\"Failed to write file: %v\", err)\n",
+			"line": "490",
+			"column": "14",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "MEDIUM",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "276",
+				"url": "https://cwe.mitre.org/data/definitions/276.html"
+			},
+			"rule_id": "G306",
+			"details": "Expect WriteFile permissions to be 0600 or less",
+			"file": "/Users/jamesolaitan/Documents/GitHub/Cloud-native-security-policy-visualizer/cmd/accessgraph-cli/main.go",
+			"code": "433: \n434: \t\tif err := os.WriteFile(*outSARIF, []byte(sarif), 0644); err != nil {\n435: \t\t\tlog.Fatalf(\"Failed to write SARIF file: %v\", err)\n",
+			"line": "434",
+			"column": "13",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "MEDIUM",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "276",
+				"url": "https://cwe.mitre.org/data/definitions/276.html"
+			},
+			"rule_id": "G306",
+			"details": "Expect WriteFile permissions to be 0600 or less",
+			"file": "/Users/jamesolaitan/Documents/GitHub/Cloud-native-security-policy-visualizer/cmd/accessgraph-cli/main.go",
+			"code": "415: \n416: \t\tif err := os.WriteFile(*outMD, []byte(markdown), 0644); err != nil {\n417: \t\t\tlog.Fatalf(\"Failed to write Markdown file: %v\", err)\n",
+			"line": "416",
+			"column": "13",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "MEDIUM",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "276",
+				"url": "https://cwe.mitre.org/data/definitions/276.html"
+			},
+			"rule_id": "G306",
+			"details": "Expect WriteFile permissions to be 0600 or less",
+			"file": "/Users/jamesolaitan/Documents/GitHub/Cloud-native-security-policy-visualizer/cmd/accessgraph-cli/main.go",
+			"code": "317: \n318: \tif err := os.WriteFile(*outFile, []byte(content), 0644); err != nil {\n319: \t\tlog.Fatalf(\"Failed to write file: %v\", err)\n",
+			"line": "318",
+			"column": "12",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "LOW",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "703",
+				"url": "https://cwe.mitre.org/data/definitions/703.html"
+			},
+			"rule_id": "G104",
+			"details": "Errors unhandled",
+			"file": "/Users/jamesolaitan/Documents/GitHub/Cloud-native-security-policy-visualizer/cmd/accessgraph-cli/main.go",
+			"code": "209: \t\t}\n210: \t\tw.Flush()\n211: \t}\n",
+			"line": "210",
+			"column": "3",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "LOW",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "703",
+				"url": "https://cwe.mitre.org/data/definitions/703.html"
+			},
+			"rule_id": "G104",
+			"details": "Errors unhandled",
+			"file": "/Users/jamesolaitan/Documents/GitHub/Cloud-native-security-policy-visualizer/cmd/accessgraph-cli/main.go",
+			"code": "89: \t\t}\n90: \t\tw.Flush()\n91: \n",
+			"line": "90",
+			"column": "3",
+			"nosec": false,
+			"suppressions": null
+		}
+	],
+	"Stats": {
+		"files": 23,
+		"lines": 4202,
+		"nosec": 0,
+		"found": 11
+	},
+	"GosecVersion": "dev"
+}

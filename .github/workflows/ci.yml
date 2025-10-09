@@ -42,7 +42,7 @@ jobs:
       run: golangci-lint run
     
     - name: Install gosec
-      run: go install github.com/securecodewarr/gosec/v2/cmd/gosec@latest
+      run: go install github.com/securego/gosec/v2/cmd/gosec@latest
     
     - name: Run gosec security scan
       run: gosec -fmt=json -out=gosec-results.json -no-fail ./...
