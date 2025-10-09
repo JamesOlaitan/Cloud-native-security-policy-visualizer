@@ -101,9 +101,9 @@ func (s *Store) SaveSnapshot(id, label string, g *graph.Graph) error {
 func (s *Store) LoadSnapshot(id string) (*graph.Graph, error) {
 	g := graph.New()
 
-	// Load nodes
+	// Load nodes (ordered for determinism)
 	rows, err := s.db.Query(
-		"SELECT id, kind, labels, props FROM nodes WHERE snapshot_id = ?",
+		"SELECT id, kind, labels, props FROM nodes WHERE snapshot_id = ? ORDER BY id",
 		id,
 	)
 	if err != nil {
@@ -127,9 +127,9 @@ func (s *Store) LoadSnapshot(id string) (*graph.Graph, error) {
 		g.AddNode(node)
 	}
 
-	// Load edges
+	// Load edges (ordered for determinism)
 	edgeRows, err := s.db.Query(
-		"SELECT src, dst, kind, props FROM edges WHERE snapshot_id = ?",
+		"SELECT src, dst, kind, props FROM edges WHERE snapshot_id = ? ORDER BY src, dst, kind",
 		id,
 	)
 	if err != nil {
@@ -232,6 +232,7 @@ func (s *Store) SearchPrincipals(snapshotID, query string, limit int) ([]ingest.
 		SELECT id, kind, labels, props FROM nodes 
 		WHERE snapshot_id = ? AND kind = 'PRINCIPAL' 
 		AND (id LIKE ? OR labels LIKE ?)
+		ORDER BY id
 		LIMIT ?
 	`, snapshotID, "%"+query+"%", "%"+query+"%", limit)
 
@@ -280,10 +281,10 @@ func (s *Store) GetNode(snapshotID, nodeID string) (*ingest.Node, error) {
 	return &node, nil
 }
 
-// GetEdges retrieves all edges for a snapshot
+// GetEdges retrieves all edges for a snapshot (ordered for determinism)
 func (s *Store) GetEdges(snapshotID string) ([]ingest.Edge, error) {
 	rows, err := s.db.Query(
-		"SELECT src, dst, kind, props FROM edges WHERE snapshot_id = ?",
+		"SELECT src, dst, kind, props FROM edges WHERE snapshot_id = ? ORDER BY src, dst, kind",
 		snapshotID,
 	)
 	if err != nil {

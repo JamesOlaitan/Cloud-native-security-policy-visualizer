@@ -58,6 +58,19 @@ type SnapshotDiff {
   summary: DiffSummary!
 }
 
+type Recommendation {
+  policyId: ID!
+  suggestedActions: [String!]!
+  suggestedResources: [String!]!
+  patchJson: String!
+  rationale: String!
+}
+
+type Export {
+  filename: String!
+  content: String!
+}
+
 type Query {
   searchPrincipals(query: String!, limit: Int): [Node!]!
   node(id: ID!): Node
@@ -65,5 +78,12 @@ type Query {
   findings(snapshotId: ID!): [Finding!]!
   snapshots: [Snapshot!]!
   snapshotDiff(a: ID!, b: ID!): SnapshotDiff!
+  
+  # Phase 2 additions
+  attackPath(from: ID!, to: ID, tags: [String!], maxHops: Int): Path!
+  recommend(snapshotId: ID!, policyId: ID!, target: ID, tags: [String!], cap: Int): Recommendation!
+  exportCypher(snapshotId: ID!): Export!
+  exportMarkdownAttackPath(from: ID!, to: ID!): Export!
+  exportSarifAttackPath(from: ID!, to: ID!): Export!
 }
 

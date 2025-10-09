@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "accessgraph.fullname" . }}-ui
+  labels:
+    {{- include "accessgraph.labels" . | nindent 4 }}
+    component: ui
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+  - port: {{ .Values.service.ui.port }}
+    targetPort: {{ .Values.service.ui.targetPort }}
+    protocol: TCP
+    name: http
+  selector:
+    {{- include "accessgraph.selectorLabels" . | nindent 4 }}
+    component: ui
+

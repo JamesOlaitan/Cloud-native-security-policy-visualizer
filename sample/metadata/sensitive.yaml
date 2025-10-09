@@ -1,0 +1,37 @@
+# AccessGraph Sensitive Resource Metadata
+# Resources marked as sensitive will be prioritized in attack path queries
+
+sensitive_resources:
+  # AWS S3 buckets containing sensitive data
+  - id: "arn:aws:s3:::data-bkt"
+    reason: "Contains customer PII and financial data"
+    criticality: "high"
+  
+  - id: "arn:aws:s3:::prod-secrets"
+    reason: "Stores production credentials and API keys"
+    criticality: "critical"
+  
+  # Kubernetes secrets
+  - id: "k8s:secret:kube-system:default-token"
+    reason: "Default service account token with cluster access"
+    criticality: "high"
+  
+  - id: "k8s:secret:production:database-credentials"
+    reason: "Production database credentials"
+    criticality: "critical"
+  
+  # Additional sensitive resources (examples)
+  - id: "arn:aws:rds:us-east-1:123456789012:db:prod-database"
+    reason: "Production database instance"
+    criticality: "critical"
+  
+  - id: "arn:aws:secretsmanager:us-east-1:123456789012:secret:prod/api-keys"
+    reason: "Third-party API keys and tokens"
+    criticality: "high"
+
+# Criticality levels:
+# - critical: Compromise would cause severe damage (production data, credentials)
+# - high: Significant business impact (customer data, internal systems)
+# - medium: Moderate impact (non-production data, limited scope)
+# - low: Minimal impact (test data, publicly available information)
+

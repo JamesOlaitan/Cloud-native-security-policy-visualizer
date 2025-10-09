@@ -31,10 +31,13 @@ func main() {
 
 	cfg := config.Load()
 
-	// Enable offline mode if configured
+	// Configure network mode (IMDS always blocked for security)
 	if cfg.Offline {
-		config.EnableOfflineMode()
-		log.Println("Mode: OFFLINE (no network egress). Capabilities: read-only.")
+		config.EnableOfflineMode(true)
+		log.Println("Mode: OFFLINE (no network egress, IMDS blocked)")
+	} else {
+		config.EnableOnlineModeWithIMDSBlock()
+		log.Println("Mode: ONLINE (IMDS blocked for security)")
 	}
 
 	log.Printf("Starting ingestion for snapshot: %s", logpkg.Redact(*snapshotID))

@@ -6,8 +6,10 @@ import (
 	"strings"
 
 	"github.com/jamesolaitan/accessgraph/internal/config"
+	"github.com/jamesolaitan/accessgraph/internal/graph"
 	"github.com/jamesolaitan/accessgraph/internal/ingest"
 	"github.com/jamesolaitan/accessgraph/internal/policy"
+	"github.com/jamesolaitan/accessgraph/internal/reco"
 	"github.com/jamesolaitan/accessgraph/internal/store"
 )
 
@@ -316,4 +318,194 @@ func nodeToGraphQL(node ingest.Node) *Node {
 
 func edgeKey(edge ingest.Edge) string {
 	return strings.Join([]string{edge.Src, edge.Dst, edge.Kind}, "|")
+}
+
+// ============ Phase 2 Resolvers ============
+
+// AttackPath finds an attack path from a principal to a resource
+func (r *queryResolver) AttackPath(ctx context.Context, from string, to *string, tags []string, maxHops *int) (*Path, error) {
+	// Get the most recent snapshot
+	snapshots, err := r.store.ListSnapshots()
+	if err != nil {
+		return nil, err
+	}
+	if len(snapshots) == 0 {
+		return nil, fmt.Errorf("no snapshots found")
+	}
+
+	snapshotID := snapshots[0].ID
+
+	g, err := r.store.LoadSnapshot(snapshotID)
+	if err != nil {
+		return nil, err
+	}
+
+	hops := 8
+	if maxHops != nil && *maxHops > 0 {
+		hops = *maxHops
+	}
+
+	toID := ""
+	if to != nil {
+		toID = *to
+	}
+
+	result, err := g.FindAttackPath(from, toID, tags, hops)
+	if err != nil {
+		return nil, err
+	}
+
+	if !result.Found {
+		return nil, fmt.Errorf("no attack path found")
+	}
+
+	pathNodes := make([]*Node, len(result.Nodes))
+	for i, node := range result.Nodes {
+		pathNodes[i] = nodeToGraphQL(node)
+	}
+
+	pathEdges := make([]*Edge, len(result.Edges))
+	for i, edge := range result.Edges {
+		pathEdges[i] = &Edge{
+			From: edge.Src,
+			To:   edge.Dst,
+			Kind: edge.Kind,
+		}
+	}
+
+	return &Path{
+		Nodes: pathNodes,
+		Edges: pathEdges,
+	}, nil
+}
+
+// Recommend generates least-privilege recommendations for a policy
+func (r *queryResolver) Recommend(ctx context.Context, snapshotID string, policyID string, target *string, tags []string, cap *int) (*Recommendation, error) {
+	g, err := r.store.LoadSnapshot(snapshotID)
+	if err != nil {
+		return nil, err
+	}
+
+	recommender := reco.New(g)
+
+	capVal := 20
+	if cap != nil && *cap > 0 {
+		capVal = *cap
+	}
+
+	targetID := ""
+	if target != nil {
+		targetID = *target
+	}
+
+	rec, err := recommender.Recommend(policyID, targetID, tags, capVal)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Recommendation{
+		PolicyID:           rec.PolicyID,
+		SuggestedActions:   rec.SuggestedActions,
+		SuggestedResources: rec.SuggestedResources,
+		PatchJSON:          rec.PatchJSON,
+		Rationale:          rec.Rationale,
+	}, nil
+}
+
+// ExportCypher exports the graph to Neo4j Cypher format
+func (r *queryResolver) ExportCypher(ctx context.Context, snapshotID string) (*Export, error) {
+	g, err := r.store.LoadSnapshot(snapshotID)
+	if err != nil {
+		return nil, err
+	}
+
+	cypher, err := g.ExportCypher()
+	if err != nil {
+		return nil, err
+	}
+
+	return &Export{
+		Filename: fmt.Sprintf("accessgraph-%s.cypher", snapshotID),
+		Content:  cypher,
+	}, nil
+}
+
+// ExportMarkdownAttackPath exports an attack path as Markdown
+func (r *queryResolver) ExportMarkdownAttackPath(ctx context.Context, from string, to string) (*Export, error) {
+	// Get the most recent snapshot
+	snapshots, err := r.store.ListSnapshots()
+	if err != nil {
+		return nil, err
+	}
+	if len(snapshots) == 0 {
+		return nil, fmt.Errorf("no snapshots found")
+	}
+
+	snapshotID := snapshots[0].ID
+
+	g, err := r.store.LoadSnapshot(snapshotID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Find the attack path
+	result, err := g.FindAttackPath(from, to, nil, 8)
+	if err != nil {
+		return nil, err
+	}
+
+	if !result.Found {
+		return nil, fmt.Errorf("no attack path found")
+	}
+
+	// Export to Markdown
+	markdown, err := graph.ExportMarkdownAttackPath(from, to, result.Nodes, result.Edges)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Export{
+		Filename: fmt.Sprintf("attack-path-%s.md", snapshotID),
+		Content:  markdown,
+	}, nil
+}
+
+// ExportSarifAttackPath exports an attack path as SARIF
+func (r *queryResolver) ExportSarifAttackPath(ctx context.Context, from string, to string) (*Export, error) {
+	// Get the most recent snapshot
+	snapshots, err := r.store.ListSnapshots()
+	if err != nil {
+		return nil, err
+	}
+	if len(snapshots) == 0 {
+		return nil, fmt.Errorf("no snapshots found")
+	}
+
+	snapshotID := snapshots[0].ID
+
+	g, err := r.store.LoadSnapshot(snapshotID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Find the attack path
+	result, err := g.FindAttackPath(from, to, nil, 8)
+	if err != nil {
+		return nil, err
+	}
+
+	if !result.Found {
+		return nil, fmt.Errorf("no attack path found")
+	}
+
+	// Export to SARIF
+	sarif, err := graph.ExportSARIFAttackPath(from, to, result.Nodes, result.Edges)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Export{
+		Filename: fmt.Sprintf("attack-path-%s.sarif", snapshotID),
+		Content:  sarif,
+	}, nil
 }

@@ -9,19 +9,6 @@ import (
 	"github.com/vektah/gqlparser/v2/ast"
 )
 
-type Config struct {
-	Resolvers ResolverRoot
-}
-
-type ResolverRoot interface {
-	Node() NodeResolver
-	Query() QueryResolver
-}
-
-type NodeResolver interface {
-	Neighbors(ctx context.Context, obj *Node, kinds []*string) ([]*Neighbor, error)
-}
-
 type QueryResolver interface {
 	SearchPrincipals(ctx context.Context, query string, limit *int) ([]*Node, error)
 	Node(ctx context.Context, id string) (*Node, error)
@@ -29,6 +16,24 @@ type QueryResolver interface {
 	Findings(ctx context.Context, snapshotID string) ([]*Finding, error)
 	Snapshots(ctx context.Context) ([]*Snapshot, error)
 	SnapshotDiff(ctx context.Context, a string, b string) (*SnapshotDiff, error)
+	AttackPath(ctx context.Context, from string, to *string, tags []string, maxHops *int) (*Path, error)
+	Recommend(ctx context.Context, snapshotID string, policyID string, target *string, tags []string, cap *int) (*Recommendation, error)
+	ExportCypher(ctx context.Context, snapshotID string) (*Export, error)
+	ExportMarkdownAttackPath(ctx context.Context, from string, to string) (*Export, error)
+	ExportSarifAttackPath(ctx context.Context, from string, to string) (*Export, error)
+}
+
+type NodeResolver interface {
+	Neighbors(ctx context.Context, obj *Node, kinds []*string) ([]*Neighbor, error)
+}
+
+type Config struct {
+	Resolvers ResolverRoot
+}
+
+type ResolverRoot interface {
+	Query() QueryResolver
+	Node() NodeResolver
 }
 
 type executableSchema struct {
@@ -46,12 +51,13 @@ func (e *executableSchema) Schema() *ast.Schema {
 	return nil
 }
 
-func (e *executableSchema) Complexity(typeName, field string, childComplexity int, rawArgs map[string]interface{}) (int, bool) {
-	return childComplexity + 1, true
+func (e *executableSchema) Complexity(typeName, field string, childComplexity int, args map[string]interface{}) (int, bool) {
+	// Simplified stub
+	return 0, false
 }
 
 func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
-	// Simplified stub - in real implementation, this would execute queries
+	// Simplified stub - actual implementation would handle GraphQL execution
 	return func(ctx context.Context) *graphql.Response {
 		return &graphql.Response{}
 	}

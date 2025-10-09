@@ -1,0 +1,123 @@
+{{- if .Values.networkPolicy.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "accessgraph.fullname" . }}-api
+  labels:
+    {{- include "accessgraph.labels" . | nindent 4 }}
+    component: api
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "accessgraph.selectorLabels" . | nindent 6 }}
+      component: api
+  policyTypes:
+    {{- toYaml .Values.networkPolicy.policyTypes | nindent 4 }}
+  ingress:
+    # Allow from UI
+    - from:
+      - podSelector:
+          matchLabels:
+            {{- include "accessgraph.selectorLabels" . | nindent 12 }}
+            component: ui
+      ports:
+      - protocol: TCP
+        port: {{ .Values.api.port }}
+    # Allow from ingress controller
+    - from:
+      - namespaceSelector: {}
+      ports:
+      - protocol: TCP
+        port: {{ .Values.api.port }}
+  egress:
+    # Allow DNS
+    - to:
+      - namespaceSelector: {}
+      ports:
+      - protocol: UDP
+        port: 53
+    # Allow to OPA
+    {{- if .Values.opa.enabled }}
+    - to:
+      - podSelector:
+          matchLabels:
+            {{- include "accessgraph.selectorLabels" . | nindent 12 }}
+            component: opa
+      ports:
+      - protocol: TCP
+        port: {{ .Values.opa.port }}
+    {{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "accessgraph.fullname" . }}-ui
+  labels:
+    {{- include "accessgraph.labels" . | nindent 4 }}
+    component: ui
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "accessgraph.selectorLabels" . | nindent 6 }}
+      component: ui
+  policyTypes:
+    {{- toYaml .Values.networkPolicy.policyTypes | nindent 4 }}
+  ingress:
+    - from:
+      - namespaceSelector: {}
+      ports:
+      - protocol: TCP
+        port: {{ .Values.ui.port }}
+  egress:
+    # Allow DNS
+    - to:
+      - namespaceSelector: {}
+      ports:
+      - protocol: UDP
+        port: 53
+    # Allow to API
+    - to:
+      - podSelector:
+          matchLabels:
+            {{- include "accessgraph.selectorLabels" . | nindent 12 }}
+            component: api
+      ports:
+      - protocol: TCP
+        port: {{ .Values.api.port }}
+{{- if .Values.opa.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "accessgraph.fullname" . }}-opa
+  labels:
+    {{- include "accessgraph.labels" . | nindent 4 }}
+    component: opa
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "accessgraph.selectorLabels" . | nindent 6 }}
+      component: opa
+  policyTypes:
+    {{- toYaml .Values.networkPolicy.policyTypes | nindent 4 }}
+  ingress:
+    # Allow from API only
+    - from:
+      - podSelector:
+          matchLabels:
+            {{- include "accessgraph.selectorLabels" . | nindent 12 }}
+            component: api
+      ports:
+      - protocol: TCP
+        port: {{ .Values.opa.port }}
+  egress:
+    # Allow DNS only (OPA is stateless, no external egress needed)
+    - to:
+      - namespaceSelector: {}
+      ports:
+      - protocol: UDP
+        port: 53
+{{- end }}
+{{- end }}
+

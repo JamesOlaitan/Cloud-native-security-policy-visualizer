@@ -1,0 +1,57 @@
+AccessGraph v{{ .Chart.AppVersion }} has been deployed!
+
+Your release is named {{ .Release.Name }}.
+
+To access AccessGraph:
+
+{{- if .Values.ingress.enabled }}
+1. Get the application URL by running these commands:
+{{- range $host := .Values.ingress.hosts }}
+  {{- range .paths }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ $host.host }}{{ .path }}
+  {{- end }}
+{{- end }}
+
+{{- else }}
+1. Get the UI service by running these commands:
+   export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "accessgraph.name" . }},component=ui" -o jsonpath="{.items[0].metadata.name}")
+   kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME 8081:{{ .Values.ui.port }}
+   
+   Then visit: http://localhost:8081
+
+2. Access the GraphQL API:
+   export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "accessgraph.name" . }},component=api" -o jsonpath="{.items[0].metadata.name}")
+   kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME 8080:{{ .Values.api.port }}
+   
+   GraphQL Playground: http://localhost:8080
+   GraphQL API: http://localhost:8080/query
+   Health Check: http://localhost:8080/healthz
+   Metrics: http://localhost:8080/metrics
+{{- end }}
+
+Configuration:
+- Offline Mode: {{ .Values.offline }}
+- OPA Enabled: {{ .Values.opa.enabled }}
+- Network Policy: {{ .Values.networkPolicy.enabled }}
+- Persistence: {{ .Values.persistence.enabled }}
+
+Security Features:
+✓ IMDS blocked (169.254.169.254)
+✓ Non-root containers
+✓ Read-only root filesystem
+✓ Network policies enforced
+✓ Security contexts configured
+{{ if .Values.offline }}✓ Network egress blocked (offline mode){{ end }}
+
+Next Steps:
+1. Load sample data using the ingest CLI
+2. Query the GraphQL API or use the UI
+3. Check health: kubectl get pods -n {{ .Release.Namespace }}
+4. View logs: kubectl logs -f -n {{ .Release.Namespace }} -l app={{ include "accessgraph.name" . }}
+
+Documentation: https://github.com/jamesolaitan/accessgraph
+
+For more information, run:
+  helm status {{ .Release.Name }} -n {{ .Release.Namespace }}
+  helm get all {{ .Release.Name }} -n {{ .Release.Namespace }}
+

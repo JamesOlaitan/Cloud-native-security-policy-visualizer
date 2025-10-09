@@ -2,30 +2,15 @@
 
 package graphql
 
-type DiffSummary struct {
-	Added   int `json:"added"`
-	Removed int `json:"removed"`
-	Changed int `json:"changed"`
+type KV struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
 
 type Edge struct {
 	From string `json:"from"`
 	To   string `json:"to"`
 	Kind string `json:"kind"`
-}
-
-type Finding struct {
-	ID          string `json:"id"`
-	RuleID      string `json:"ruleId"`
-	Severity    string `json:"severity"`
-	EntityRef   string `json:"entityRef"`
-	Reason      string `json:"reason"`
-	Remediation string `json:"remediation"`
-}
-
-type KV struct {
-	Key   string `json:"key"`
-	Value string `json:"value"`
 }
 
 type Neighbor struct {
@@ -47,16 +32,44 @@ type Path struct {
 	Edges []*Edge `json:"edges"`
 }
 
+type Finding struct {
+	ID          string `json:"id"`
+	RuleID      string `json:"ruleId"`
+	Severity    string `json:"severity"`
+	EntityRef   string `json:"entityRef"`
+	Reason      string `json:"reason"`
+	Remediation string `json:"remediation"`
+}
+
 type Snapshot struct {
 	ID        string  `json:"id"`
 	CreatedAt string  `json:"createdAt"`
-	Label     *string `json:"label,omitempty"`
+	Label     *string `json:"label"`
 	NodeCount int     `json:"nodeCount"`
 	EdgeCount int     `json:"edgeCount"`
+}
+
+type DiffSummary struct {
+	Added   int `json:"added"`
+	Removed int `json:"removed"`
+	Changed int `json:"changed"`
 }
 
 type SnapshotDiff struct {
 	AddedEdges   []*Edge      `json:"addedEdges"`
 	RemovedEdges []*Edge      `json:"removedEdges"`
 	Summary      *DiffSummary `json:"summary"`
+}
+
+type Recommendation struct {
+	PolicyID           string   `json:"policyId"`
+	SuggestedActions   []string `json:"suggestedActions"`
+	SuggestedResources []string `json:"suggestedResources"`
+	PatchJSON          string   `json:"patchJson"`
+	Rationale          string   `json:"rationale"`
+}
+
+type Export struct {
+	Filename string `json:"filename"`
+	Content  string `json:"content"`
 }

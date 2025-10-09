@@ -9,7 +9,9 @@ import (
 	"text/tabwriter"
 
 	"github.com/jamesolaitan/accessgraph/internal/config"
+	"github.com/jamesolaitan/accessgraph/internal/graph"
 	"github.com/jamesolaitan/accessgraph/internal/policy"
+	"github.com/jamesolaitan/accessgraph/internal/reco"
 	"github.com/jamesolaitan/accessgraph/internal/store"
 )
 
@@ -30,6 +32,10 @@ func main() {
 		handleFindings(cfg)
 	case "graph":
 		handleGraph(cfg)
+	case "attack-path":
+		handleAttackPath(cfg)
+	case "recommend":
+		handleRecommend(cfg)
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
 		printUsage()
@@ -38,13 +44,16 @@ func main() {
 }
 
 func printUsage() {
-	fmt.Print(`AccessGraph CLI
+	fmt.Print(`AccessGraph CLI v1.1.0
 
 Usage:
   accessgraph-cli snapshots ls
   accessgraph-cli snapshots diff --a <idA> --b <idB>
   accessgraph-cli findings --snapshot <id> [--format table|json]
   accessgraph-cli graph path --from <principalID> --to <resourceID>
+  accessgraph-cli graph export --snapshot <id> --format cypher --out <file>
+  accessgraph-cli attack-path --from <id> [--to <id>] [--tag sensitive] [--max-hops 8] [--out path.md] [--sarif findings.sarif]
+  accessgraph-cli recommend --snapshot <id> --policy <policyId> [--target <id>] [--tag sensitive] [--cap 20] [--out reco.json]
 `)
 }
 
@@ -204,16 +213,25 @@ func handleFindings(cfg *config.Config) {
 
 func handleGraph(cfg *config.Config) {
 	if len(os.Args) < 3 {
-		fmt.Println("Usage: accessgraph-cli graph path --from <principalID> --to <resourceID>")
+		fmt.Println("Usage: accessgraph-cli graph <path|export>")
 		os.Exit(1)
 	}
 
 	subcommand := os.Args[2]
 
-	if subcommand != "path" {
+	switch subcommand {
+	case "path":
+		handleGraphPath(cfg)
+	case "export":
+		handleGraphExport(cfg)
+	default:
 		fmt.Printf("Unknown subcommand: %s\n", subcommand)
+		fmt.Println("Usage: accessgraph-cli graph <path|export>")
 		os.Exit(1)
 	}
+}
+
+func handleGraphPath(cfg *config.Config) {
 
 	fs := flag.NewFlagSet("path", flag.ExitOnError)
 	from := fs.String("from", "", "Source node ID")
@@ -259,5 +277,244 @@ func handleGraph(cfg *config.Config) {
 		if i < len(edges) {
 			fmt.Printf("   --[%s]-->\n", edges[i].Kind)
 		}
+	}
+}
+
+func handleGraphExport(cfg *config.Config) {
+	fs := flag.NewFlagSet("export", flag.ExitOnError)
+	snapshotID := fs.String("snapshot", "", "Snapshot ID")
+	format := fs.String("format", "cypher", "Export format (cypher)")
+	outFile := fs.String("out", "", "Output file")
+	_ = fs.Parse(os.Args[3:])
+
+	if *snapshotID == "" || *outFile == "" {
+		fmt.Println("Usage: accessgraph-cli graph export --snapshot <id> --format cypher --out <file>")
+		os.Exit(1)
+	}
+
+	st, err := store.New(cfg.SQLitePath)
+	if err != nil {
+		log.Fatalf("Failed to open store: %v", err)
+	}
+	defer st.Close()
+
+	g, err := st.LoadSnapshot(*snapshotID)
+	if err != nil {
+		log.Fatalf("Failed to load snapshot: %v", err)
+	}
+
+	var content string
+
+	switch *format {
+	case "cypher":
+		content, err = g.ExportCypher()
+		if err != nil {
+			log.Fatalf("Failed to export Cypher: %v", err)
+		}
+	default:
+		log.Fatalf("Unknown format: %s", *format)
+	}
+
+	if err := os.WriteFile(*outFile, []byte(content), 0644); err != nil {
+		log.Fatalf("Failed to write file: %v", err)
+	}
+
+	fmt.Printf("Exported snapshot %s to %s (%d bytes)\n", *snapshotID, *outFile, len(content))
+}
+
+func handleAttackPath(cfg *config.Config) {
+	fs := flag.NewFlagSet("attack-path", flag.ExitOnError)
+	from := fs.String("from", "", "Source principal ID")
+	to := fs.String("to", "", "Destination resource ID (optional with --tag)")
+	tag := fs.String("tag", "", "Tag filter (e.g., 'sensitive')")
+	maxHops := fs.Int("max-hops", 8, "Maximum hops")
+	outMD := fs.String("out", "", "Output Markdown file")
+	outSARIF := fs.String("sarif", "", "Output SARIF file")
+	formatFlag := fs.String("format", "table", "Output format (table|json)")
+	_ = fs.Parse(os.Args[2:])
+
+	if *from == "" {
+		fmt.Println("Usage: accessgraph-cli attack-path --from <id> [--to <id>] [--tag sensitive] [--max-hops 8] [--out path.md] [--sarif findings.sarif]")
+		os.Exit(1)
+	}
+
+	st, err := store.New(cfg.SQLitePath)
+	if err != nil {
+		log.Fatalf("Failed to open store: %v", err)
+	}
+	defer st.Close()
+
+	// Get most recent snapshot
+	snapshots, err := st.ListSnapshots()
+	if err != nil {
+		log.Fatalf("Failed to list snapshots: %v", err)
+	}
+	if len(snapshots) == 0 {
+		log.Fatal("No snapshots found")
+	}
+
+	snapshotID := snapshots[0].ID
+
+	g, err := st.LoadSnapshot(snapshotID)
+	if err != nil {
+		log.Fatalf("Failed to load snapshot: %v", err)
+	}
+
+	// Build tags
+	tags := []string{}
+	if *tag != "" {
+		tags = append(tags, *tag)
+	}
+
+	// Find attack path
+	result, err := g.FindAttackPath(*from, *to, tags, *maxHops)
+	if err != nil {
+		log.Fatalf("Failed to find attack path: %v", err)
+	}
+
+	if !result.Found {
+		fmt.Println("No attack path found")
+		os.Exit(0)
+	}
+
+	// Display path
+	if *formatFlag == "json" {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		_ = enc.Encode(map[string]interface{}{
+			"found": result.Found,
+			"nodes": result.Nodes,
+			"edges": result.Edges,
+			"hops":  len(result.Nodes) - 1,
+		})
+	} else {
+		targetID := *to
+		if targetID == "" && len(result.Nodes) > 0 {
+			targetID = result.Nodes[len(result.Nodes)-1].ID
+		}
+		fmt.Printf("Attack Path: %s → %s (hops: %d)\n\n", *from, targetID, len(result.Nodes)-1)
+
+		for i, node := range result.Nodes {
+			fmt.Printf("%d. %s [%s]\n", i+1, node.ID, node.Kind)
+			if i < len(result.Edges) {
+				fmt.Printf("   --[%s]-->\n", result.Edges[i].Kind)
+			}
+		}
+	}
+
+	// Export to Markdown if requested
+	if *outMD != "" {
+		targetID := *to
+		if targetID == "" && len(result.Nodes) > 0 {
+			targetID = result.Nodes[len(result.Nodes)-1].ID
+		}
+		markdown, err := graph.ExportMarkdownAttackPath(*from, targetID, result.Nodes, result.Edges)
+		if err != nil {
+			log.Fatalf("Failed to export Markdown: %v", err)
+		}
+
+		if err := os.WriteFile(*outMD, []byte(markdown), 0644); err != nil {
+			log.Fatalf("Failed to write Markdown file: %v", err)
+		}
+
+		fmt.Printf("\nMarkdown report saved to: %s\n", *outMD)
+	}
+
+	// Export to SARIF if requested
+	if *outSARIF != "" {
+		targetID := *to
+		if targetID == "" && len(result.Nodes) > 0 {
+			targetID = result.Nodes[len(result.Nodes)-1].ID
+		}
+		sarif, err := graph.ExportSARIFAttackPath(*from, targetID, result.Nodes, result.Edges)
+		if err != nil {
+			log.Fatalf("Failed to export SARIF: %v", err)
+		}
+
+		if err := os.WriteFile(*outSARIF, []byte(sarif), 0644); err != nil {
+			log.Fatalf("Failed to write SARIF file: %v", err)
+		}
+
+		fmt.Printf("SARIF report saved to: %s\n", *outSARIF)
+	}
+}
+
+func handleRecommend(cfg *config.Config) {
+	fs := flag.NewFlagSet("recommend", flag.ExitOnError)
+	snapshotID := fs.String("snapshot", "", "Snapshot ID")
+	policyID := fs.String("policy", "", "Policy ID")
+	target := fs.String("target", "", "Target resource ID (optional with --tag)")
+	tag := fs.String("tag", "", "Tag filter (e.g., 'sensitive')")
+	cap := fs.Int("cap", 20, "Maximum suggestions")
+	outFile := fs.String("out", "", "Output JSON file")
+	formatFlag := fs.String("format", "table", "Output format (table|json)")
+	_ = fs.Parse(os.Args[2:])
+
+	if *snapshotID == "" || *policyID == "" {
+		fmt.Println("Usage: accessgraph-cli recommend --snapshot <id> --policy <policyId> [--target <id>] [--tag sensitive] [--cap 20] [--out reco.json]")
+		os.Exit(1)
+	}
+
+	st, err := store.New(cfg.SQLitePath)
+	if err != nil {
+		log.Fatalf("Failed to open store: %v", err)
+	}
+	defer st.Close()
+
+	g, err := st.LoadSnapshot(*snapshotID)
+	if err != nil {
+		log.Fatalf("Failed to load snapshot: %v", err)
+	}
+
+	recommender := reco.New(g)
+
+	// Build tags
+	tags := []string{}
+	if *tag != "" {
+		tags = append(tags, *tag)
+	}
+
+	rec, err := recommender.Recommend(*policyID, *target, tags, *cap)
+	if err != nil {
+		log.Fatalf("Failed to generate recommendation: %v", err)
+	}
+
+	// Display recommendation
+	if *formatFlag == "json" || *outFile != "" {
+		data, err := json.MarshalIndent(rec, "", "  ")
+		if err != nil {
+			log.Fatalf("Failed to marshal JSON: %v", err)
+		}
+
+		if *outFile != "" {
+			if err := os.WriteFile(*outFile, data, 0644); err != nil {
+				log.Fatalf("Failed to write file: %v", err)
+			}
+			fmt.Printf("Recommendation saved to: %s\n", *outFile)
+		} else {
+			fmt.Println(string(data))
+		}
+	} else {
+		fmt.Printf("Least-Privilege Recommendation\n\n")
+		fmt.Printf("Policy: %s\n\n", rec.PolicyID)
+		fmt.Printf("Rationale:\n%s\n\n", rec.Rationale)
+
+		if len(rec.SuggestedActions) > 0 {
+			fmt.Printf("Suggested Actions (%d):\n", len(rec.SuggestedActions))
+			for _, action := range rec.SuggestedActions {
+				fmt.Printf("  - %s\n", action)
+			}
+			fmt.Println()
+		}
+
+		if len(rec.SuggestedResources) > 0 {
+			fmt.Printf("Suggested Resources (%d):\n", len(rec.SuggestedResources))
+			for _, resource := range rec.SuggestedResources {
+				fmt.Printf("  - %s\n", resource)
+			}
+			fmt.Println()
+		}
+
+		fmt.Printf("JSON Patch:\n%s\n", rec.PatchJSON)
 	}
 }

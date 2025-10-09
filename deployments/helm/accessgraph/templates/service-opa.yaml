@@ -1,0 +1,20 @@
+{{- if .Values.opa.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "accessgraph.fullname" . }}-opa
+  labels:
+    {{- include "accessgraph.labels" . | nindent 4 }}
+    component: opa
+spec:
+  type: ClusterIP
+  ports:
+  - port: {{ .Values.service.opa.port }}
+    targetPort: {{ .Values.service.opa.targetPort }}
+    protocol: TCP
+    name: http
+  selector:
+    {{- include "accessgraph.selectorLabels" . | nindent 4 }}
+    component: opa
+{{- end }}
+

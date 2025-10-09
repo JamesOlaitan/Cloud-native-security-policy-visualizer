@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "accessgraph.fullname" . }}
+  labels:
+    {{- include "accessgraph.labels" . | nindent 4 }}
+data:
+  OFFLINE: {{ .Values.offline | quote }}
+  OPA_URL: "http://{{ include "accessgraph.fullname" . }}-opa:{{ .Values.opa.port }}/v1/data/accessgraph"
+  {{- range $key, $value := .Values.api.env }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}
+

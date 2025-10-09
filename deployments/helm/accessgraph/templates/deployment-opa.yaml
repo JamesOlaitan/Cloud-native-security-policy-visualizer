@@ -1,0 +1,68 @@
+{{- if .Values.opa.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "accessgraph.fullname" . }}-opa
+  labels:
+    {{- include "accessgraph.labels" . | nindent 4 }}
+    component: opa
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "accessgraph.selectorLabels" . | nindent 6 }}
+      component: opa
+  template:
+    metadata:
+      labels:
+        {{- include "accessgraph.selectorLabels" . | nindent 8 }}
+        component: opa
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "accessgraph.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+      - name: opa
+        image: "{{ .Values.image.opa.repository }}:{{ .Values.image.opa.tag }}"
+        imagePullPolicy: {{ .Values.image.opa.pullPolicy }}
+        args:
+        - "run"
+        - "--server"
+        - "--addr=:{{ .Values.opa.port }}"
+        ports:
+        - name: http
+          containerPort: {{ .Values.opa.port }}
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.opa.port }}
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.opa.port }}
+          initialDelaySeconds: 3
+          periodSeconds: 5
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+{{- end }}
+
