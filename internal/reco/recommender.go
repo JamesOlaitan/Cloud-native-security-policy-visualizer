@@ -3,6 +3,7 @@ package reco
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -67,7 +68,7 @@ func (r *Recommender) Recommend(policyID string, targetID string, tags []string,
 	var targets []string
 	if targetID != "" {
 		targets = []string{targetID}
-	} else if containsTag(tags, "sensitive") {
+	} else if slices.Contains(tags, "sensitive") {
 		targets = r.findSensitiveResources()
 	} else {
 		// Use all resources as targets
@@ -164,9 +165,9 @@ func (r *Recommender) Recommend(policyID string, targetID string, tags []string,
 func (r *Recommender) findPrincipalsWithPolicy(policyID string) []string {
 	var principals []string
 
-	// Iterate through all edges to find HAS_POLICY edges pointing to this policy
+	// Iterate through all edges to find policy attachment edges pointing to this policy
 	for _, edge := range r.g.GetEdges() {
-		if edge.Dst == policyID && (edge.Kind == "HAS_POLICY" || edge.Kind == "HAS_ROLE") {
+		if edge.Dst == policyID && (edge.Kind == ingest.EdgeAttachedPolicy || edge.Kind == ingest.EdgeBindsTo) {
 			principals = append(principals, edge.Src)
 		}
 	}
@@ -179,7 +180,7 @@ func (r *Recommender) findSensitiveResources() []string {
 	var resources []string
 
 	for _, node := range r.g.GetNodes() {
-		if node.Kind == ingest.RESOURCE {
+		if node.Kind == ingest.KindResource {
 			if val, ok := node.Props["sensitive"]; ok && val == "true" {
 				resources = append(resources, node.ID)
 			}
@@ -194,7 +195,7 @@ func (r *Recommender) findAllResources() []string {
 	var resources []string
 
 	for _, node := range r.g.GetNodes() {
-		if node.Kind == ingest.RESOURCE {
+		if node.Kind == ingest.KindResource {
 			resources = append(resources, node.ID)
 		}
 	}
@@ -250,16 +251,6 @@ func hasWildcard(policy ingest.Node) bool {
 // isWildcard checks if a value is a wildcard
 func isWildcard(val string) bool {
 	return val == "*" || strings.HasSuffix(val, ":*") || strings.HasSuffix(val, "/*")
-}
-
-// containsTag checks if tags contain a specific tag
-func containsTag(tags []string, tag string) bool {
-	for _, t := range tags {
-		if t == tag {
-			return true
-		}
-	}
-	return false
 }
 
 // truncatePolicyID shortens policy ID for display

@@ -16,14 +16,14 @@ func TestRecommend(t *testing.T) {
 	// Create a scenario with a wildcard policy
 	principal := ingest.Node{
 		ID:     "arn:aws:iam::123456789012:role/DevRole",
-		Kind:   ingest.PRINCIPAL,
+		Kind:   ingest.KindPrincipal,
 		Labels: []string{"aws", "role"},
 		Props:  map[string]string{},
 	}
 
 	wildcardPolicy := ingest.Node{
 		ID:     "arn:aws:iam::123456789012:policy/DevDataAccess",
-		Kind:   ingest.POLICY,
+		Kind:   ingest.KindPolicy,
 		Labels: []string{"aws", "policy"},
 		Props: map[string]string{
 			"name":   "DevDataAccess",
@@ -33,7 +33,7 @@ func TestRecommend(t *testing.T) {
 
 	resource1 := ingest.Node{
 		ID:     "arn:aws:s3:::data-bkt",
-		Kind:   ingest.RESOURCE,
+		Kind:   ingest.KindResource,
 		Labels: []string{"aws", "s3"},
 		Props: map[string]string{
 			"name": "data-bkt",
@@ -42,7 +42,7 @@ func TestRecommend(t *testing.T) {
 
 	resource2 := ingest.Node{
 		ID:     "arn:aws:s3:::logs-bkt",
-		Kind:   ingest.RESOURCE,
+		Kind:   ingest.KindResource,
 		Labels: []string{"aws", "s3"},
 		Props: map[string]string{
 			"name": "logs-bkt",
@@ -58,7 +58,7 @@ func TestRecommend(t *testing.T) {
 	if err := g.AddEdge(ingest.Edge{
 		Src:   principal.ID,
 		Dst:   wildcardPolicy.ID,
-		Kind:  "HAS_POLICY",
+		Kind:  ingest.EdgeAttachedPolicy,
 		Props: map[string]string{},
 	}); err != nil {
 		t.Fatalf("Failed to add edge: %v", err)
@@ -149,14 +149,14 @@ func TestRecommendWithTarget(t *testing.T) {
 
 	principal := ingest.Node{
 		ID:     "arn:aws:iam::123456789012:role/DevRole",
-		Kind:   ingest.PRINCIPAL,
+		Kind:   ingest.KindPrincipal,
 		Labels: []string{"aws", "role"},
 		Props:  map[string]string{},
 	}
 
 	policy := ingest.Node{
 		ID:     "arn:aws:iam::123456789012:policy/DevPolicy",
-		Kind:   ingest.POLICY,
+		Kind:   ingest.KindPolicy,
 		Labels: []string{"aws", "policy"},
 		Props: map[string]string{
 			"action": "*",
@@ -165,14 +165,14 @@ func TestRecommendWithTarget(t *testing.T) {
 
 	targetResource := ingest.Node{
 		ID:     "arn:aws:s3:::target-bkt",
-		Kind:   ingest.RESOURCE,
+		Kind:   ingest.KindResource,
 		Labels: []string{"aws", "s3"},
 		Props:  map[string]string{},
 	}
 
 	otherResource := ingest.Node{
 		ID:     "arn:aws:s3:::other-bkt",
-		Kind:   ingest.RESOURCE,
+		Kind:   ingest.KindResource,
 		Labels: []string{"aws", "s3"},
 		Props:  map[string]string{},
 	}
@@ -186,7 +186,7 @@ func TestRecommendWithTarget(t *testing.T) {
 	if err := g.AddEdge(ingest.Edge{
 		Src:   principal.ID,
 		Dst:   policy.ID,
-		Kind:  "HAS_POLICY",
+		Kind:  ingest.EdgeAttachedPolicy,
 		Props: map[string]string{},
 	}); err != nil {
 		t.Fatalf("Failed to add edge: %v", err)
@@ -237,14 +237,14 @@ func TestRecommendWithCap(t *testing.T) {
 
 	principal := ingest.Node{
 		ID:     "arn:aws:iam::123456789012:role/DevRole",
-		Kind:   ingest.PRINCIPAL,
+		Kind:   ingest.KindPrincipal,
 		Labels: []string{"aws", "role"},
 		Props:  map[string]string{},
 	}
 
 	policy := ingest.Node{
 		ID:     "arn:aws:iam::123456789012:policy/DevPolicy",
-		Kind:   ingest.POLICY,
+		Kind:   ingest.KindPolicy,
 		Labels: []string{"aws", "policy"},
 		Props: map[string]string{
 			"action": "*",
@@ -258,7 +258,7 @@ func TestRecommendWithCap(t *testing.T) {
 	for i := 0; i < 30; i++ {
 		resource := ingest.Node{
 			ID:     fmt.Sprintf("arn:aws:s3:::bucket-%d", i),
-			Kind:   ingest.RESOURCE,
+			Kind:   ingest.KindResource,
 			Labels: []string{"aws", "s3"},
 			Props:  map[string]string{},
 		}
@@ -279,7 +279,7 @@ func TestRecommendWithCap(t *testing.T) {
 	if err := g.AddEdge(ingest.Edge{
 		Src:   principal.ID,
 		Dst:   policy.ID,
-		Kind:  "HAS_POLICY",
+		Kind:  ingest.EdgeAttachedPolicy,
 		Props: map[string]string{},
 	}); err != nil {
 		t.Fatalf("Failed to add edge: %v", err)
@@ -308,14 +308,14 @@ func TestRecommendNoWildcard(t *testing.T) {
 
 	principal := ingest.Node{
 		ID:     "arn:aws:iam::123456789012:role/DevRole",
-		Kind:   ingest.PRINCIPAL,
+		Kind:   ingest.KindPrincipal,
 		Labels: []string{"aws", "role"},
 		Props:  map[string]string{},
 	}
 
 	normalPolicy := ingest.Node{
 		ID:     "arn:aws:iam::123456789012:policy/NormalPolicy",
-		Kind:   ingest.POLICY,
+		Kind:   ingest.KindPolicy,
 		Labels: []string{"aws", "policy"},
 		Props: map[string]string{
 			"name": "NormalPolicy",
@@ -329,7 +329,7 @@ func TestRecommendNoWildcard(t *testing.T) {
 	if err := g.AddEdge(ingest.Edge{
 		Src:   principal.ID,
 		Dst:   normalPolicy.ID,
-		Kind:  "HAS_POLICY",
+		Kind:  ingest.EdgeAttachedPolicy,
 		Props: map[string]string{},
 	}); err != nil {
 		t.Fatalf("Failed to add edge: %v", err)
@@ -358,7 +358,7 @@ func TestHasWildcard(t *testing.T) {
 		{
 			name: "Wildcard action *",
 			policy: ingest.Node{
-				Kind: ingest.POLICY,
+				Kind: ingest.KindPolicy,
 				Props: map[string]string{
 					"action": "*",
 				},
@@ -368,7 +368,7 @@ func TestHasWildcard(t *testing.T) {
 		{
 			name: "Wildcard action service:*",
 			policy: ingest.Node{
-				Kind: ingest.POLICY,
+				Kind: ingest.KindPolicy,
 				Props: map[string]string{
 					"action": "s3:*",
 				},
@@ -378,7 +378,7 @@ func TestHasWildcard(t *testing.T) {
 		{
 			name: "Wildcard resource",
 			policy: ingest.Node{
-				Kind: ingest.POLICY,
+				Kind: ingest.KindPolicy,
 				Props: map[string]string{
 					"resource": "arn:aws:s3:::*/*",
 				},
@@ -388,7 +388,7 @@ func TestHasWildcard(t *testing.T) {
 		{
 			name: "No wildcard",
 			policy: ingest.Node{
-				Kind: ingest.POLICY,
+				Kind: ingest.KindPolicy,
 				Props: map[string]string{
 					"action": "s3:GetObject",
 				},
@@ -398,7 +398,7 @@ func TestHasWildcard(t *testing.T) {
 		{
 			name: "Empty props",
 			policy: ingest.Node{
-				Kind:  ingest.POLICY,
+				Kind:  ingest.KindPolicy,
 				Props: map[string]string{},
 			},
 			expected: false,
@@ -421,7 +421,7 @@ func TestGenerateJSONPatch(t *testing.T) {
 
 	policy := ingest.Node{
 		ID:    "test-policy",
-		Kind:  ingest.POLICY,
+		Kind:  ingest.KindPolicy,
 		Props: map[string]string{},
 	}
 

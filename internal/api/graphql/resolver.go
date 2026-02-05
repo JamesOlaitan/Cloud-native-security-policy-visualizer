@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/jamesolaitan/accessgraph/internal/config"
 	"github.com/jamesolaitan/accessgraph/internal/graph"
@@ -13,20 +14,80 @@ import (
 	"github.com/jamesolaitan/accessgraph/internal/store"
 )
 
+// DataStore defines the storage operations the resolver depends on.
+// Defined at the consumer side so the resolver is testable without a real database.
+type DataStore interface {
+	ListSnapshots(ctx context.Context) ([]store.Snapshot, error)
+	LoadSnapshot(ctx context.Context, id string) (*graph.Graph, error)
+	SearchPrincipals(ctx context.Context, snapshotID, query string, limit int) ([]ingest.Node, error)
+	GetNode(ctx context.Context, snapshotID, nodeID string) (*ingest.Node, error)
+	GetEdges(ctx context.Context, snapshotID string) ([]ingest.Edge, error)
+	CountNodes(ctx context.Context, snapshotID string) (int, error)
+	CountEdges(ctx context.Context, snapshotID string) (int, error)
+}
+
+// PolicyEvaluator defines the policy evaluation operations the resolver depends on.
+type PolicyEvaluator interface {
+	Evaluate(ctx context.Context, input map[string]interface{}) ([]policy.Finding, error)
+}
+
+// graphCache provides a simple in-memory cache for loaded graphs keyed by
+// snapshot ID. This avoids reloading from the database on every query.
+type graphCache struct {
+	mu     sync.RWMutex
+	graphs map[string]*graph.Graph
+}
+
+func newGraphCache() *graphCache {
+	return &graphCache{
+		graphs: make(map[string]*graph.Graph),
+	}
+}
+
+func (c *graphCache) get(snapshotID string) (*graph.Graph, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	g, ok := c.graphs[snapshotID]
+	return g, ok
+}
+
+func (c *graphCache) set(snapshotID string, g *graph.Graph) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.graphs[snapshotID] = g
+}
+
 // Resolver is the root GraphQL resolver
 type Resolver struct {
-	store     *store.Store
-	opaClient *policy.Client
+	store     DataStore
+	evaluator PolicyEvaluator
 	config    *config.Config
+	cache     *graphCache
 }
 
 // NewResolver creates a new resolver
-func NewResolver(store *store.Store, cfg *config.Config) *Resolver {
+func NewResolver(store DataStore, cfg *config.Config) *Resolver {
 	return &Resolver{
 		store:     store,
-		opaClient: policy.NewClient(cfg.OPAUrl),
+		evaluator: policy.NewClient(cfg.OPAUrl),
 		config:    cfg,
+		cache:     newGraphCache(),
 	}
+}
+
+// loadGraph loads a graph from cache or store, caching the result.
+func (r *Resolver) loadGraph(ctx context.Context, snapshotID string) (*graph.Graph, error) {
+	if g, ok := r.cache.get(snapshotID); ok {
+		return g, nil
+	}
+
+	g, err := r.store.LoadSnapshot(ctx, snapshotID)
+	if err != nil {
+		return nil, err
+	}
+
+	r.cache.set(snapshotID, g)
+	return g, nil
 }
 
 // Query returns the query resolver
@@ -34,18 +95,12 @@ func (r *Resolver) Query() QueryResolver {
 	return &queryResolver{r}
 }
 
-// Node returns the node resolver
-func (r *Resolver) Node() NodeResolver {
-	return &nodeResolver{r}
-}
-
 type queryResolver struct{ *Resolver }
-type nodeResolver struct{ *Resolver }
 
 // SearchPrincipals searches for principal nodes
 func (r *queryResolver) SearchPrincipals(ctx context.Context, query string, limit *int) ([]*Node, error) {
 	// Get the most recent snapshot
-	snapshots, err := r.store.ListSnapshots()
+	snapshots, err := r.store.ListSnapshots(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +115,7 @@ func (r *queryResolver) SearchPrincipals(ctx context.Context, query string, limi
 		l = *limit
 	}
 
-	nodes, err := r.store.SearchPrincipals(snapshotID, query, l)
+	nodes, err := r.store.SearchPrincipals(ctx, snapshotID, query, l)
 	if err != nil {
 		return nil, err
 	}
@@ -73,10 +128,10 @@ func (r *queryResolver) SearchPrincipals(ctx context.Context, query string, limi
 	return result, nil
 }
 
-// Node retrieves a single node
+// Node retrieves a single node with its neighbors
 func (r *queryResolver) Node(ctx context.Context, id string) (*Node, error) {
 	// Get the most recent snapshot
-	snapshots, err := r.store.ListSnapshots()
+	snapshots, err := r.store.ListSnapshots(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -86,18 +141,41 @@ func (r *queryResolver) Node(ctx context.Context, id string) (*Node, error) {
 
 	snapshotID := snapshots[0].ID
 
-	node, err := r.store.GetNode(snapshotID, id)
+	node, err := r.store.GetNode(ctx, snapshotID, id)
 	if err != nil {
 		return nil, err
 	}
 
-	return nodeToGraphQL(*node), nil
+	result := nodeToGraphQL(*node)
+
+	// Also fetch neighbors for this node
+	g, err := r.loadGraph(ctx, snapshotID)
+	if err != nil {
+		return result, nil // Return node without neighbors on graph load error
+	}
+
+	neighbors, edgeKinds, err := g.GetNeighbors(id, nil)
+	if err != nil {
+		return result, nil // Return node without neighbors on error
+	}
+
+	result.Neighbors = make([]*Neighbor, len(neighbors))
+	for i, neighbor := range neighbors {
+		result.Neighbors[i] = &Neighbor{
+			ID:       neighbor.ID,
+			Kind:     string(neighbor.Kind),
+			Labels:   neighbor.Labels,
+			EdgeKind: edgeKinds[i],
+		}
+	}
+
+	return result, nil
 }
 
 // ShortestPath finds the shortest path between two nodes
 func (r *queryResolver) ShortestPath(ctx context.Context, from string, to string, maxHops *int) (*Path, error) {
 	// Get the most recent snapshot
-	snapshots, err := r.store.ListSnapshots()
+	snapshots, err := r.store.ListSnapshots(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +185,7 @@ func (r *queryResolver) ShortestPath(ctx context.Context, from string, to string
 
 	snapshotID := snapshots[0].ID
 
-	g, err := r.store.LoadSnapshot(snapshotID)
+	g, err := r.loadGraph(ctx, snapshotID)
 	if err != nil {
 		return nil, err
 	}
@@ -144,14 +222,14 @@ func (r *queryResolver) ShortestPath(ctx context.Context, from string, to string
 
 // Findings returns policy violations for a snapshot
 func (r *queryResolver) Findings(ctx context.Context, snapshotID string) ([]*Finding, error) {
-	g, err := r.store.LoadSnapshot(snapshotID)
+	g, err := r.loadGraph(ctx, snapshotID)
 	if err != nil {
 		return nil, err
 	}
 
 	input := policy.BuildInput(g)
 
-	violations, err := r.opaClient.Evaluate(input)
+	violations, err := r.evaluator.Evaluate(ctx, input)
 	if err != nil {
 		return nil, err
 	}
@@ -173,15 +251,22 @@ func (r *queryResolver) Findings(ctx context.Context, snapshotID string) ([]*Fin
 
 // Snapshots returns all snapshots
 func (r *queryResolver) Snapshots(ctx context.Context) ([]*Snapshot, error) {
-	snapshots, err := r.store.ListSnapshots()
+	snapshots, err := r.store.ListSnapshots(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	result := make([]*Snapshot, len(snapshots))
 	for i, snap := range snapshots {
-		nodeCount, _ := r.store.CountNodes(snap.ID)
-		edgeCount, _ := r.store.CountEdges(snap.ID)
+		nodeCount, err := r.store.CountNodes(ctx, snap.ID)
+		if err != nil {
+			return nil, fmt.Errorf("counting nodes for snapshot %s: %w", snap.ID, err)
+		}
+
+		edgeCount, err := r.store.CountEdges(ctx, snap.ID)
+		if err != nil {
+			return nil, fmt.Errorf("counting edges for snapshot %s: %w", snap.ID, err)
+		}
 
 		label := snap.Label
 		result[i] = &Snapshot{
@@ -198,12 +283,12 @@ func (r *queryResolver) Snapshots(ctx context.Context) ([]*Snapshot, error) {
 
 // SnapshotDiff computes the diff between two snapshots
 func (r *queryResolver) SnapshotDiff(ctx context.Context, a string, b string) (*SnapshotDiff, error) {
-	edgesA, err := r.store.GetEdges(a)
+	edgesA, err := r.store.GetEdges(ctx, a)
 	if err != nil {
 		return nil, err
 	}
 
-	edgesB, err := r.store.GetEdges(b)
+	edgesB, err := r.store.GetEdges(ctx, b)
 	if err != nil {
 		return nil, err
 	}
@@ -257,55 +342,12 @@ func (r *queryResolver) SnapshotDiff(ctx context.Context, a string, b string) (*
 	}, nil
 }
 
-// Neighbors resolves neighbors for a node
-func (r *nodeResolver) Neighbors(ctx context.Context, obj *Node, kinds []*string) ([]*Neighbor, error) {
-	// Get the most recent snapshot
-	snapshots, err := r.store.ListSnapshots()
-	if err != nil {
-		return nil, err
-	}
-	if len(snapshots) == 0 {
-		return []*Neighbor{}, nil
-	}
-
-	snapshotID := snapshots[0].ID
-
-	g, err := r.store.LoadSnapshot(snapshotID)
-	if err != nil {
-		return nil, err
-	}
-
-	kindFilter := []ingest.Kind{}
-	for _, k := range kinds {
-		if k != nil {
-			kindFilter = append(kindFilter, ingest.Kind(*k))
-		}
-	}
-
-	neighbors, edgeKinds, err := g.GetNeighbors(obj.ID, kindFilter)
-	if err != nil {
-		return nil, err
-	}
-
-	result := make([]*Neighbor, len(neighbors))
-	for i, neighbor := range neighbors {
-		result[i] = &Neighbor{
-			ID:       neighbor.ID,
-			Kind:     string(neighbor.Kind),
-			Labels:   neighbor.Labels,
-			EdgeKind: edgeKinds[i],
-		}
-	}
-
-	return result, nil
-}
-
 // Helper functions
 
 func nodeToGraphQL(node ingest.Node) *Node {
-	props := make([]*KV, 0, len(node.Props))
+	props := make([]*Kv, 0, len(node.Props))
 	for k, v := range node.Props {
-		props = append(props, &KV{Key: k, Value: v})
+		props = append(props, &Kv{Key: k, Value: v})
 	}
 
 	return &Node{
@@ -325,7 +367,7 @@ func edgeKey(edge ingest.Edge) string {
 // AttackPath finds an attack path from a principal to a resource
 func (r *queryResolver) AttackPath(ctx context.Context, from string, to *string, tags []string, maxHops *int) (*Path, error) {
 	// Get the most recent snapshot
-	snapshots, err := r.store.ListSnapshots()
+	snapshots, err := r.store.ListSnapshots(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -335,7 +377,7 @@ func (r *queryResolver) AttackPath(ctx context.Context, from string, to *string,
 
 	snapshotID := snapshots[0].ID
 
-	g, err := r.store.LoadSnapshot(snapshotID)
+	g, err := r.loadGraph(ctx, snapshotID)
 	if err != nil {
 		return nil, err
 	}
@@ -381,7 +423,7 @@ func (r *queryResolver) AttackPath(ctx context.Context, from string, to *string,
 
 // Recommend generates least-privilege recommendations for a policy
 func (r *queryResolver) Recommend(ctx context.Context, snapshotID string, policyID string, target *string, tags []string, cap *int) (*Recommendation, error) {
-	g, err := r.store.LoadSnapshot(snapshotID)
+	g, err := r.loadGraph(ctx, snapshotID)
 	if err != nil {
 		return nil, err
 	}
@@ -414,7 +456,7 @@ func (r *queryResolver) Recommend(ctx context.Context, snapshotID string, policy
 
 // ExportCypher exports the graph to Neo4j Cypher format
 func (r *queryResolver) ExportCypher(ctx context.Context, snapshotID string) (*Export, error) {
-	g, err := r.store.LoadSnapshot(snapshotID)
+	g, err := r.loadGraph(ctx, snapshotID)
 	if err != nil {
 		return nil, err
 	}
@@ -433,7 +475,7 @@ func (r *queryResolver) ExportCypher(ctx context.Context, snapshotID string) (*E
 // ExportMarkdownAttackPath exports an attack path as Markdown
 func (r *queryResolver) ExportMarkdownAttackPath(ctx context.Context, from string, to string) (*Export, error) {
 	// Get the most recent snapshot
-	snapshots, err := r.store.ListSnapshots()
+	snapshots, err := r.store.ListSnapshots(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -443,7 +485,7 @@ func (r *queryResolver) ExportMarkdownAttackPath(ctx context.Context, from strin
 
 	snapshotID := snapshots[0].ID
 
-	g, err := r.store.LoadSnapshot(snapshotID)
+	g, err := r.loadGraph(ctx, snapshotID)
 	if err != nil {
 		return nil, err
 	}
@@ -473,7 +515,7 @@ func (r *queryResolver) ExportMarkdownAttackPath(ctx context.Context, from strin
 // ExportSarifAttackPath exports an attack path as SARIF
 func (r *queryResolver) ExportSarifAttackPath(ctx context.Context, from string, to string) (*Export, error) {
 	// Get the most recent snapshot
-	snapshots, err := r.store.ListSnapshots()
+	snapshots, err := r.store.ListSnapshots(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -483,7 +525,7 @@ func (r *queryResolver) ExportSarifAttackPath(ctx context.Context, from string, 
 
 	snapshotID := snapshots[0].ID
 
-	g, err := r.store.LoadSnapshot(snapshotID)
+	g, err := r.loadGraph(ctx, snapshotID)
 	if err != nil {
 		return nil, err
 	}

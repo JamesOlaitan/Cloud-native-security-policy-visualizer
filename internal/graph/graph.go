@@ -16,6 +16,9 @@ type Graph struct {
 	nodes     map[string]*graphNode
 	edges     []ingest.Edge
 	nodesByID map[int64]string
+	// edgeIndex provides O(1) edge lookup by source and destination node IDs,
+	// avoiding O(E) scans when resolving neighbors or shortest paths.
+	edgeIndex map[string]map[string][]ingest.Edge
 }
 
 type graphNode struct {
@@ -34,6 +37,7 @@ func New() *Graph {
 		nodes:     make(map[string]*graphNode),
 		edges:     []ingest.Edge{},
 		nodesByID: make(map[int64]string),
+		edgeIndex: make(map[string]map[string][]ingest.Edge),
 	}
 }
 
@@ -69,6 +73,12 @@ func (g *Graph) AddEdge(edge ingest.Edge) error {
 	g.g.SetEdge(g.g.NewEdge(src, dst))
 	g.edges = append(g.edges, edge)
 
+	// Update edge index for O(1) lookups
+	if g.edgeIndex[edge.Src] == nil {
+		g.edgeIndex[edge.Src] = make(map[string][]ingest.Edge)
+	}
+	g.edgeIndex[edge.Src][edge.Dst] = append(g.edgeIndex[edge.Src][edge.Dst], edge)
+
 	return nil
 }
 
@@ -95,6 +105,27 @@ func (g *Graph) GetEdges() []ingest.Edge {
 	return g.edges
 }
 
+// lookupEdgeKind returns the kind of the first edge between src and dst using
+// the edge index. Falls back to empty string if no edge is found.
+func (g *Graph) lookupEdgeKind(srcID, dstID string) string {
+	if dstMap, ok := g.edgeIndex[srcID]; ok {
+		if edges, ok := dstMap[dstID]; ok && len(edges) > 0 {
+			return edges[0].Kind
+		}
+	}
+	return ""
+}
+
+// lookupEdge returns the first edge between src and dst using the edge index.
+func (g *Graph) lookupEdge(srcID, dstID string) (ingest.Edge, bool) {
+	if dstMap, ok := g.edgeIndex[srcID]; ok {
+		if edges, ok := dstMap[dstID]; ok && len(edges) > 0 {
+			return edges[0], true
+		}
+	}
+	return ingest.Edge{}, false
+}
+
 // GetNeighbors returns neighbors of a node filtered by kind
 func (g *Graph) GetNeighbors(id string, kinds []ingest.Kind) ([]ingest.Node, []string, error) {
 	node, ok := g.nodes[id]
@@ -117,14 +148,7 @@ func (g *Graph) GetNeighbors(id string, kinds []ingest.Kind) ([]ingest.Node, []s
 		neighborData := g.nodes[neighborNodeID].data
 
 		if len(kinds) == 0 || kindsMap[neighborData.Kind] {
-			// Find edge kind
-			edgeKind := ""
-			for _, e := range g.edges {
-				if e.Src == id && e.Dst == neighborNodeID {
-					edgeKind = e.Kind
-					break
-				}
-			}
+			edgeKind := g.lookupEdgeKind(id, neighborNodeID)
 			neighbors = append(neighbors, neighborData)
 			edgeKinds = append(edgeKinds, edgeKind)
 		}
@@ -138,14 +162,7 @@ func (g *Graph) GetNeighbors(id string, kinds []ingest.Kind) ([]ingest.Node, []s
 		neighborData := g.nodes[neighborNodeID].data
 
 		if len(kinds) == 0 || kindsMap[neighborData.Kind] {
-			// Find edge kind
-			edgeKind := ""
-			for _, e := range g.edges {
-				if e.Src == neighborNodeID && e.Dst == id {
-					edgeKind = e.Kind
-					break
-				}
-			}
+			edgeKind := g.lookupEdgeKind(neighborNodeID, id)
 			neighbors = append(neighbors, neighborData)
 			edgeKinds = append(edgeKinds, edgeKind)
 		}
@@ -192,12 +209,8 @@ func (g *Graph) ShortestPath(fromID, toID string, maxHops int) ([]ingest.Node, [
 
 		if i < len(nodePath)-1 {
 			nextID := g.nodesByID[nodePath[i+1].ID()]
-			// Find edge
-			for _, e := range g.edges {
-				if e.Src == nodeID && e.Dst == nextID {
-					edges = append(edges, e)
-					break
-				}
+			if edge, found := g.lookupEdge(nodeID, nextID); found {
+				edges = append(edges, edge)
 			}
 		}
 	}
@@ -221,12 +234,17 @@ func (g *Graph) BFS(startID string, maxDepth int) ([]ingest.Node, error) {
 
 	bfs := traverse.BreadthFirst{
 		Traverse: func(e graph.Edge) bool {
-			depth := len(result)
-			return depth < maxDepth
+			// Use the Walk callback's depth parameter instead of result length
+			// to correctly gate traversal. The Traverse function controls which
+			// edges are followed, but depth gating happens in Walk below.
+			return true
 		},
 	}
 
-	bfs.Walk(g.g, startNode, func(n graph.Node, d int) bool {
+	bfs.Walk(g.g, startNode, func(n graph.Node, depth int) bool {
+		if depth > maxDepth {
+			return true // stop exploring beyond maxDepth
+		}
 		if !visited[n.ID()] {
 			visited[n.ID()] = true
 			nodeID := g.nodesByID[n.ID()]

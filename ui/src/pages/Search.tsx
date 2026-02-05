@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { gql, useLazyQuery } from '@apollo/client'
 import SearchBar from '../components/SearchBar'
+import { GraphNode } from '../types'
 
 const SEARCH_PRINCIPALS = gql`
   query SearchPrincipals($query: String!, $limit: Int) {
@@ -17,17 +18,10 @@ const SEARCH_PRINCIPALS = gql`
   }
 `
 
-interface Node {
-  id: string
-  kind: string
-  labels: string[]
-  props: { key: string; value: string }[]
-}
-
 export default function Search() {
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
-  const [searchPrincipals, { loading, error, data }] = useLazyQuery(SEARCH_PRINCIPALS)
+  const [searchPrincipals, { loading, error, data }] = useLazyQuery<{ searchPrincipals: GraphNode[] }>(SEARCH_PRINCIPALS)
 
   const handleSearch = (searchQuery: string) => {
     setQuery(searchQuery)
@@ -40,16 +34,16 @@ export default function Search() {
     navigate(`/graph/${encodeURIComponent(nodeId)}`)
   }
 
-  const results: Node[] = data?.searchPrincipals || []
+  const results = data?.searchPrincipals || []
 
   return (
     <div>
       <h2 className="page-title">Search Principals</h2>
       <SearchBar onSearch={handleSearch} />
-      
+
       {loading && <div className="loading">Searching...</div>}
       {error && <div className="error">Error: {error.message}</div>}
-      
+
       {results.length > 0 && (
         <ul className="results-list">
           {results.map((node) => (
@@ -66,11 +60,10 @@ export default function Search() {
           ))}
         </ul>
       )}
-      
+
       {query && results.length === 0 && !loading && (
         <div>No results found for "{query}"</div>
       )}
     </div>
   )
 }
-

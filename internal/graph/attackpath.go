@@ -2,6 +2,7 @@ package graph
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 
 	"github.com/jamesolaitan/accessgraph/internal/ingest"
@@ -45,7 +46,7 @@ func (g *Graph) FindAttackPath(fromID, toID string, tags []string, maxHops int) 
 	}
 
 	// If toID is empty and tags includes "sensitive", find nearest sensitive resource
-	if containsTag(tags, "sensitive") {
+	if slices.Contains(tags, "sensitive") {
 		return g.findNearestSensitiveResource(fromID, maxHops)
 	}
 
@@ -103,22 +104,10 @@ func (g *Graph) findSensitiveResources() []string {
 	return sensitive
 }
 
-// containsTag checks if a tag is in the list
-func containsTag(tags []string, tag string) bool {
-	for _, t := range tags {
-		if t == tag {
-			return true
-		}
-	}
-	return false
-}
-
 // GetEdgeDetails returns detailed information about an edge
 func (g *Graph) GetEdgeDetails(srcID, dstID string) (*ingest.Edge, error) {
-	for _, e := range g.edges {
-		if e.Src == srcID && e.Dst == dstID {
-			return &e, nil
-		}
+	if edge, found := g.lookupEdge(srcID, dstID); found {
+		return &edge, nil
 	}
 	return nil, fmt.Errorf("edge not found from %s to %s", srcID, dstID)
 }

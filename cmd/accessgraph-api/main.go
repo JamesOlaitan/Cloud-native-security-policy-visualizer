@@ -19,6 +19,7 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/jamesolaitan/accessgraph/internal/api/graphql"
 	"github.com/jamesolaitan/accessgraph/internal/config"
+	redactlog "github.com/jamesolaitan/accessgraph/internal/log"
 	"github.com/jamesolaitan/accessgraph/internal/store"
 )
 
@@ -28,6 +29,9 @@ var (
 )
 
 func main() {
+	// Set the default logger to redact sensitive data (AWS account IDs, ARNs, secrets)
+	log.SetOutput(&redactlog.RedactWriter{Out: os.Stderr})
+
 	cfg := config.Load()
 
 	// Configure network mode (IMDS always blocked for security)
@@ -85,8 +89,11 @@ func main() {
 	srv := handler.NewDefaultServer(graphql.NewExecutableSchema(graphql.Config{Resolvers: resolver}))
 	r.Handle("/query", srv)
 
-	// Playground for development
-	r.Handle("/", playground.Handler("AccessGraph GraphQL", "/query"))
+	// GraphQL Playground is only available in development mode to avoid
+	// exposing an interactive query interface in production environments.
+	if cfg.DevMode {
+		r.Handle("/", playground.Handler("AccessGraph GraphQL", "/query"))
+	}
 
 	// Health and observability endpoints
 	r.Get("/healthz", healthzHandler)
@@ -107,7 +114,9 @@ func main() {
 	go func() {
 		log.Printf("Server starting on :%s", cfg.Port)
 		log.Printf("Mode: %s", logMode(cfg))
-		log.Printf("GraphQL playground: http://localhost:%s/", cfg.Port)
+		if cfg.DevMode {
+			log.Printf("GraphQL playground: http://localhost:%s/", cfg.Port)
+		}
 		log.Printf("GraphQL endpoint: http://localhost:%s/query", cfg.Port)
 		log.Printf("Health endpoint: http://localhost:%s/healthz", cfg.Port)
 		log.Printf("Metrics endpoint: http://localhost:%s/metrics", cfg.Port)

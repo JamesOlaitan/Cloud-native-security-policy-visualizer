@@ -60,3 +60,12 @@ data/
 .env
 .env.local
 
+# Prevent nested repo clones
+Cloud-native-security-policy-visualizer/
+
+# Security scan results
+gosec-results.json
+
+# Claude Code
+.claude/
+

@@ -13,7 +13,7 @@ func TestExportCypher(t *testing.T) {
 	// Add nodes
 	principal := ingest.Node{
 		ID:     "arn:aws:iam::123456789012:role/DevRole",
-		Kind:   ingest.PRINCIPAL,
+		Kind:   ingest.KindPrincipal,
 		Labels: []string{"aws", "role"},
 		Props: map[string]string{
 			"name": "DevRole",
@@ -22,7 +22,7 @@ func TestExportCypher(t *testing.T) {
 
 	resource := ingest.Node{
 		ID:     "arn:aws:s3:::data-bkt",
-		Kind:   ingest.RESOURCE,
+		Kind:   ingest.KindResource,
 		Labels: []string{"aws", "s3"},
 		Props: map[string]string{
 			"name":      "data-bkt",
@@ -91,13 +91,13 @@ func TestExportCypherDeterministic(t *testing.T) {
 	nodes := []ingest.Node{
 		{
 			ID:     "node1",
-			Kind:   ingest.PRINCIPAL,
+			Kind:   ingest.KindPrincipal,
 			Labels: []string{"test"},
 			Props:  map[string]string{"a": "1"},
 		},
 		{
 			ID:     "node2",
-			Kind:   ingest.RESOURCE,
+			Kind:   ingest.KindResource,
 			Labels: []string{"test"},
 			Props:  map[string]string{"b": "2"},
 		},
@@ -206,7 +206,7 @@ func TestExportCypherWithSpecialCharacters(t *testing.T) {
 	// Add node with special characters in ID
 	node := ingest.Node{
 		ID:     `arn:aws:s3:::bucket-with-"quotes"-and-\backslashes`,
-		Kind:   ingest.RESOURCE,
+		Kind:   ingest.KindResource,
 		Labels: []string{"aws"},
 		Props:  map[string]string{},
 	}

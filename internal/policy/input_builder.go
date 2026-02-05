@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/jamesolaitan/accessgraph/internal/graph"
@@ -23,7 +24,7 @@ func BuildInput(g *graph.Graph) map[string]interface{} {
 	// Build roles map
 	roles := input["roles"].(map[string]interface{})
 	for _, node := range nodes {
-		if node.Kind == ingest.KindPrincipal && contains(node.Labels, "aws-role") {
+		if node.Kind == ingest.KindPrincipal && slices.Contains(node.Labels, "aws-role") {
 			roleData := map[string]interface{}{
 				"arn":  node.ID,
 				"name": node.Props["name"],
@@ -118,11 +119,3 @@ func BuildInput(g *graph.Graph) map[string]interface{} {
 	return input
 }
 
-func contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
-}

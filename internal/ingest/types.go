@@ -12,14 +12,6 @@ const (
 	KindNS        Kind = "NAMESPACE"
 	KindAccount   Kind = "ACCOUNT"
 
-	// Shorter aliases for convenience
-	PRINCIPAL = KindPrincipal
-	ROLE      = KindRole
-	POLICY    = KindPolicy
-	PERM      = KindPerm
-	RESOURCE  = KindResource
-	NS        = KindNS
-	ACCOUNT   = KindAccount
 )
 
 // Node represents a graph node

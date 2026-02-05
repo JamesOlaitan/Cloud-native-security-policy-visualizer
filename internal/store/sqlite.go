@@ -1,6 +1,7 @@
 package store
 
 import (
+	"context"
 	"database/sql"
 	_ "embed"
 	"encoding/json"
@@ -48,8 +49,8 @@ func (s *Store) Close() error {
 }
 
 // SaveSnapshot saves a graph snapshot
-func (s *Store) SaveSnapshot(id, label string, g *graph.Graph) error {
-	tx, err := s.db.Begin()
+func (s *Store) SaveSnapshot(ctx context.Context, id, label string, g *graph.Graph) error {
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
@@ -57,7 +58,7 @@ func (s *Store) SaveSnapshot(id, label string, g *graph.Graph) error {
 
 	// Insert snapshot
 	createdAt := time.Now().UTC().Format(time.RFC3339)
-	_, err = tx.Exec(
+	_, err = tx.ExecContext(ctx,
 		"INSERT INTO snapshots (id, created_at, label) VALUES (?, ?, ?)",
 		id, createdAt, label,
 	)
@@ -68,10 +69,17 @@ func (s *Store) SaveSnapshot(id, label string, g *graph.Graph) error {
 	// Insert nodes
 	nodes := g.GetNodes()
 	for _, node := range nodes {
-		labelsJSON, _ := json.Marshal(node.Labels)
-		propsJSON, _ := json.Marshal(node.Props)
+		labelsJSON, err := json.Marshal(node.Labels)
+		if err != nil {
+			return fmt.Errorf("marshaling labels for node %s: %w", node.ID, err)
+		}
 
-		_, err = tx.Exec(
+		propsJSON, err := json.Marshal(node.Props)
+		if err != nil {
+			return fmt.Errorf("marshaling props for node %s: %w", node.ID, err)
+		}
+
+		_, err = tx.ExecContext(ctx,
 			"INSERT INTO nodes (snapshot_id, id, kind, labels, props) VALUES (?, ?, ?, ?, ?)",
 			id, node.ID, string(node.Kind), string(labelsJSON), string(propsJSON),
 		)
@@ -83,9 +91,12 @@ func (s *Store) SaveSnapshot(id, label string, g *graph.Graph) error {
 	// Insert edges
 	edges := g.GetEdges()
 	for _, edge := range edges {
-		propsJSON, _ := json.Marshal(edge.Props)
+		propsJSON, err := json.Marshal(edge.Props)
+		if err != nil {
+			return fmt.Errorf("marshaling props for edge %s->%s: %w", edge.Src, edge.Dst, err)
+		}
 
-		_, err = tx.Exec(
+		_, err = tx.ExecContext(ctx,
 			"INSERT INTO edges (snapshot_id, src, dst, kind, props) VALUES (?, ?, ?, ?, ?)",
 			id, edge.Src, edge.Dst, edge.Kind, string(propsJSON),
 		)
@@ -98,11 +109,11 @@ func (s *Store) SaveSnapshot(id, label string, g *graph.Graph) error {
 }
 
 // LoadSnapshot loads a graph snapshot
-func (s *Store) LoadSnapshot(id string) (*graph.Graph, error) {
+func (s *Store) LoadSnapshot(ctx context.Context, id string) (*graph.Graph, error) {
 	g := graph.New()
 
 	// Load nodes (ordered for determinism)
-	rows, err := s.db.Query(
+	rows, err := s.db.QueryContext(ctx,
 		"SELECT id, kind, labels, props FROM nodes WHERE snapshot_id = ? ORDER BY id",
 		id,
 	)
@@ -116,19 +127,26 @@ func (s *Store) LoadSnapshot(id string) (*graph.Graph, error) {
 		var labelsJSON, propsJSON string
 		var kind string
 
-		if err2 := rows.Scan(&node.ID, &kind, &labelsJSON, &propsJSON); err2 != nil {
-			return nil, err2
+		if err := rows.Scan(&node.ID, &kind, &labelsJSON, &propsJSON); err != nil {
+			return nil, err
 		}
 
 		node.Kind = ingest.Kind(kind)
-		_ = json.Unmarshal([]byte(labelsJSON), &node.Labels)
-		_ = json.Unmarshal([]byte(propsJSON), &node.Props)
+		if err := json.Unmarshal([]byte(labelsJSON), &node.Labels); err != nil {
+			return nil, fmt.Errorf("unmarshaling labels for node %s: %w", node.ID, err)
+		}
+		if err := json.Unmarshal([]byte(propsJSON), &node.Props); err != nil {
+			return nil, fmt.Errorf("unmarshaling props for node %s: %w", node.ID, err)
+		}
 
 		g.AddNode(node)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 
 	// Load edges (ordered for determinism)
-	edgeRows, err := s.db.Query(
+	edgeRows, err := s.db.QueryContext(ctx,
 		"SELECT src, dst, kind, props FROM edges WHERE snapshot_id = ? ORDER BY src, dst, kind",
 		id,
 	)
@@ -145,20 +163,25 @@ func (s *Store) LoadSnapshot(id string) (*graph.Graph, error) {
 			return nil, err
 		}
 
-		_ = json.Unmarshal([]byte(propsJSON), &edge.Props)
+		if err := json.Unmarshal([]byte(propsJSON), &edge.Props); err != nil {
+			return nil, fmt.Errorf("unmarshaling edge props %s->%s: %w", edge.Src, edge.Dst, err)
+		}
 
 		if err := g.AddEdge(edge); err != nil {
 			// Skip edges with missing nodes
 			continue
 		}
 	}
+	if err := edgeRows.Err(); err != nil {
+		return nil, err
+	}
 
 	return g, nil
 }
 
 // ListSnapshots returns all snapshots
-func (s *Store) ListSnapshots() ([]Snapshot, error) {
-	rows, err := s.db.Query("SELECT id, created_at, label FROM snapshots ORDER BY created_at DESC")
+func (s *Store) ListSnapshots(ctx context.Context) ([]Snapshot, error) {
+	rows, err := s.db.QueryContext(ctx, "SELECT id, created_at, label FROM snapshots ORDER BY created_at DESC")
 	if err != nil {
 		return nil, err
 	}
@@ -181,17 +204,20 @@ func (s *Store) ListSnapshots() ([]Snapshot, error) {
 
 		snapshots = append(snapshots, snap)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 
 	return snapshots, nil
 }
 
 // GetSnapshot retrieves a single snapshot by ID
-func (s *Store) GetSnapshot(id string) (*Snapshot, error) {
+func (s *Store) GetSnapshot(ctx context.Context, id string) (*Snapshot, error) {
 	var snap Snapshot
 	var createdAtStr string
 	var label sql.NullString
 
-	err := s.db.QueryRow(
+	err := s.db.QueryRowContext(ctx,
 		"SELECT id, created_at, label FROM snapshots WHERE id = ?",
 		id,
 	).Scan(&snap.ID, &createdAtStr, &label)
@@ -209,28 +235,28 @@ func (s *Store) GetSnapshot(id string) (*Snapshot, error) {
 }
 
 // CountNodes returns the number of nodes in a snapshot
-func (s *Store) CountNodes(snapshotID string) (int, error) {
+func (s *Store) CountNodes(ctx context.Context, snapshotID string) (int, error) {
 	var count int
-	err := s.db.QueryRow("SELECT COUNT(*) FROM nodes WHERE snapshot_id = ?", snapshotID).Scan(&count)
+	err := s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM nodes WHERE snapshot_id = ?", snapshotID).Scan(&count)
 	return count, err
 }
 
 // CountEdges returns the number of edges in a snapshot
-func (s *Store) CountEdges(snapshotID string) (int, error) {
+func (s *Store) CountEdges(ctx context.Context, snapshotID string) (int, error) {
 	var count int
-	err := s.db.QueryRow("SELECT COUNT(*) FROM edges WHERE snapshot_id = ?", snapshotID).Scan(&count)
+	err := s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM edges WHERE snapshot_id = ?", snapshotID).Scan(&count)
 	return count, err
 }
 
 // SearchPrincipals searches for principal nodes by query string
-func (s *Store) SearchPrincipals(snapshotID, query string, limit int) ([]ingest.Node, error) {
+func (s *Store) SearchPrincipals(ctx context.Context, snapshotID, query string, limit int) ([]ingest.Node, error) {
 	if limit <= 0 {
 		limit = 10
 	}
 
-	rows, err := s.db.Query(`
-		SELECT id, kind, labels, props FROM nodes 
-		WHERE snapshot_id = ? AND kind = 'PRINCIPAL' 
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT id, kind, labels, props FROM nodes
+		WHERE snapshot_id = ? AND kind = 'PRINCIPAL'
 		AND (id LIKE ? OR labels LIKE ?)
 		ORDER BY id
 		LIMIT ?
@@ -251,21 +277,28 @@ func (s *Store) SearchPrincipals(snapshotID, query string, limit int) ([]ingest.
 		}
 
 		node.Kind = ingest.Kind(kind)
-		_ = json.Unmarshal([]byte(labelsJSON), &node.Labels)
-		_ = json.Unmarshal([]byte(propsJSON), &node.Props)
+		if err := json.Unmarshal([]byte(labelsJSON), &node.Labels); err != nil {
+			return nil, fmt.Errorf("unmarshaling labels: %w", err)
+		}
+		if err := json.Unmarshal([]byte(propsJSON), &node.Props); err != nil {
+			return nil, fmt.Errorf("unmarshaling props: %w", err)
+		}
 
 		nodes = append(nodes, node)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return nodes, nil
 }
 
 // GetNode retrieves a single node by ID
-func (s *Store) GetNode(snapshotID, nodeID string) (*ingest.Node, error) {
+func (s *Store) GetNode(ctx context.Context, snapshotID, nodeID string) (*ingest.Node, error) {
 	var node ingest.Node
 	var labelsJSON, propsJSON, kind string
 
-	err := s.db.QueryRow(
+	err := s.db.QueryRowContext(ctx,
 		"SELECT id, kind, labels, props FROM nodes WHERE snapshot_id = ? AND id = ?",
 		snapshotID, nodeID,
 	).Scan(&node.ID, &kind, &labelsJSON, &propsJSON)
@@ -275,15 +308,19 @@ func (s *Store) GetNode(snapshotID, nodeID string) (*ingest.Node, error) {
 	}
 
 	node.Kind = ingest.Kind(kind)
-	_ = json.Unmarshal([]byte(labelsJSON), &node.Labels)
-	_ = json.Unmarshal([]byte(propsJSON), &node.Props)
+	if err := json.Unmarshal([]byte(labelsJSON), &node.Labels); err != nil {
+		return nil, fmt.Errorf("unmarshaling labels: %w", err)
+	}
+	if err := json.Unmarshal([]byte(propsJSON), &node.Props); err != nil {
+		return nil, fmt.Errorf("unmarshaling props: %w", err)
+	}
 
 	return &node, nil
 }
 
 // GetEdges retrieves all edges for a snapshot (ordered for determinism)
-func (s *Store) GetEdges(snapshotID string) ([]ingest.Edge, error) {
-	rows, err := s.db.Query(
+func (s *Store) GetEdges(ctx context.Context, snapshotID string) ([]ingest.Edge, error) {
+	rows, err := s.db.QueryContext(ctx,
 		"SELECT src, dst, kind, props FROM edges WHERE snapshot_id = ? ORDER BY src, dst, kind",
 		snapshotID,
 	)
@@ -301,8 +338,13 @@ func (s *Store) GetEdges(snapshotID string) ([]ingest.Edge, error) {
 			return nil, err
 		}
 
-		_ = json.Unmarshal([]byte(propsJSON), &edge.Props)
+		if err := json.Unmarshal([]byte(propsJSON), &edge.Props); err != nil {
+			return nil, fmt.Errorf("unmarshaling edge props: %w", err)
+		}
 		edges = append(edges, edge)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return edges, nil

@@ -12,7 +12,7 @@ func TestFindAttackPath(t *testing.T) {
 	// Add nodes
 	principal := ingest.Node{
 		ID:     "arn:aws:iam::123456789012:role/DevRole",
-		Kind:   ingest.PRINCIPAL,
+		Kind:   ingest.KindPrincipal,
 		Labels: []string{"aws", "role"},
 		Props: map[string]string{
 			"name": "DevRole",
@@ -21,7 +21,7 @@ func TestFindAttackPath(t *testing.T) {
 
 	policy := ingest.Node{
 		ID:     "arn:aws:iam::123456789012:policy/DevDataAccess",
-		Kind:   ingest.POLICY,
+		Kind:   ingest.KindPolicy,
 		Labels: []string{"aws", "policy"},
 		Props: map[string]string{
 			"name": "DevDataAccess",
@@ -30,7 +30,7 @@ func TestFindAttackPath(t *testing.T) {
 
 	resource := ingest.Node{
 		ID:     "arn:aws:s3:::data-bkt",
-		Kind:   ingest.RESOURCE,
+		Kind:   ingest.KindResource,
 		Labels: []string{"aws", "s3"},
 		Props: map[string]string{
 			"name": "data-bkt",
@@ -142,7 +142,7 @@ func TestFindNearestSensitiveResource(t *testing.T) {
 	// Add principal
 	principal := ingest.Node{
 		ID:     "arn:aws:iam::123456789012:role/DevRole",
-		Kind:   ingest.PRINCIPAL,
+		Kind:   ingest.KindPrincipal,
 		Labels: []string{"aws", "role"},
 		Props:  map[string]string{},
 	}
@@ -151,7 +151,7 @@ func TestFindNearestSensitiveResource(t *testing.T) {
 	// Add two resources at different distances
 	nearResource := ingest.Node{
 		ID:     "arn:aws:s3:::near-bkt",
-		Kind:   ingest.RESOURCE,
+		Kind:   ingest.KindResource,
 		Labels: []string{"aws", "s3"},
 		Props: map[string]string{
 			"sensitive": "true",
@@ -160,7 +160,7 @@ func TestFindNearestSensitiveResource(t *testing.T) {
 
 	farResource := ingest.Node{
 		ID:     "arn:aws:s3:::far-bkt",
-		Kind:   ingest.RESOURCE,
+		Kind:   ingest.KindResource,
 		Labels: []string{"aws", "s3"},
 		Props: map[string]string{
 			"sensitive": "true",
@@ -169,7 +169,7 @@ func TestFindNearestSensitiveResource(t *testing.T) {
 
 	middlePolicy := ingest.Node{
 		ID:     "arn:aws:iam::123456789012:policy/AccessPolicy",
-		Kind:   ingest.POLICY,
+		Kind:   ingest.KindPolicy,
 		Labels: []string{"aws", "policy"},
 		Props:  map[string]string{},
 	}
@@ -234,7 +234,7 @@ func TestFindSensitiveResources(t *testing.T) {
 	// Add mix of sensitive and non-sensitive resources
 	sensitive1 := ingest.Node{
 		ID:     "arn:aws:s3:::sensitive-bkt",
-		Kind:   ingest.RESOURCE,
+		Kind:   ingest.KindResource,
 		Labels: []string{"aws", "s3"},
 		Props: map[string]string{
 			"sensitive": "true",
@@ -243,7 +243,7 @@ func TestFindSensitiveResources(t *testing.T) {
 
 	sensitive2 := ingest.Node{
 		ID:     "arn:aws:s3:::another-sensitive-bkt",
-		Kind:   ingest.RESOURCE,
+		Kind:   ingest.KindResource,
 		Labels: []string{"aws", "s3"},
 		Props: map[string]string{
 			"sensitive": "true",
@@ -252,7 +252,7 @@ func TestFindSensitiveResources(t *testing.T) {
 
 	normal := ingest.Node{
 		ID:     "arn:aws:s3:::normal-bkt",
-		Kind:   ingest.RESOURCE,
+		Kind:   ingest.KindResource,
 		Labels: []string{"aws", "s3"},
 		Props:  map[string]string{},
 	}
@@ -280,7 +280,7 @@ func TestMarkSensitive(t *testing.T) {
 
 	node := ingest.Node{
 		ID:     "arn:aws:s3:::test-bkt",
-		Kind:   ingest.RESOURCE,
+		Kind:   ingest.KindResource,
 		Labels: []string{"aws", "s3"},
 		Props:  map[string]string{},
 	}

@@ -1,7 +1,6 @@
 package config
 
 import (
-	"os"
 	"testing"
 )
 
@@ -27,18 +26,11 @@ func TestLoad(t *testing.T) {
 }
 
 func TestLoadWithEnv(t *testing.T) {
-	// Set environment variables
-	os.Setenv("OFFLINE", "false")
-	os.Setenv("OPA_URL", "http://custom:9999/opa")
-	os.Setenv("SQLITE_PATH", "/custom/path.db")
-	os.Setenv("PORT", "9090")
-
-	defer func() {
-		os.Unsetenv("OFFLINE")
-		os.Unsetenv("OPA_URL")
-		os.Unsetenv("SQLITE_PATH")
-		os.Unsetenv("PORT")
-	}()
+	// Set environment variables (t.Setenv auto-cleans up)
+	t.Setenv("OFFLINE", "false")
+	t.Setenv("OPA_URL", "http://custom:9999/opa")
+	t.Setenv("SQLITE_PATH", "/custom/path.db")
+	t.Setenv("PORT", "9090")
 
 	cfg := Load()
 

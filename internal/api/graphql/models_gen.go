@@ -2,9 +2,10 @@
 
 package graphql
 
-type KV struct {
-	Key   string `json:"key"`
-	Value string `json:"value"`
+type DiffSummary struct {
+	Added   int `json:"added"`
+	Removed int `json:"removed"`
+	Changed int `json:"changed"`
 }
 
 type Edge struct {
@@ -13,23 +14,9 @@ type Edge struct {
 	Kind string `json:"kind"`
 }
 
-type Neighbor struct {
-	ID       string   `json:"id"`
-	Kind     string   `json:"kind"`
-	Labels   []string `json:"labels"`
-	EdgeKind string   `json:"edgeKind"`
-}
-
-type Node struct {
-	ID     string   `json:"id"`
-	Kind   string   `json:"kind"`
-	Labels []string `json:"labels"`
-	Props  []*KV    `json:"props"`
-}
-
-type Path struct {
-	Nodes []*Node `json:"nodes"`
-	Edges []*Edge `json:"edges"`
+type Export struct {
+	Filename string `json:"filename"`
+	Content  string `json:"content"`
 }
 
 type Finding struct {
@@ -41,24 +28,32 @@ type Finding struct {
 	Remediation string `json:"remediation"`
 }
 
-type Snapshot struct {
-	ID        string  `json:"id"`
-	CreatedAt string  `json:"createdAt"`
-	Label     *string `json:"label"`
-	NodeCount int     `json:"nodeCount"`
-	EdgeCount int     `json:"edgeCount"`
+type Kv struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
 
-type DiffSummary struct {
-	Added   int `json:"added"`
-	Removed int `json:"removed"`
-	Changed int `json:"changed"`
+type Neighbor struct {
+	ID       string   `json:"id"`
+	Kind     string   `json:"kind"`
+	Labels   []string `json:"labels"`
+	EdgeKind string   `json:"edgeKind"`
 }
 
-type SnapshotDiff struct {
-	AddedEdges   []*Edge      `json:"addedEdges"`
-	RemovedEdges []*Edge      `json:"removedEdges"`
-	Summary      *DiffSummary `json:"summary"`
+type Node struct {
+	ID        string      `json:"id"`
+	Kind      string      `json:"kind"`
+	Labels    []string    `json:"labels"`
+	Props     []*Kv       `json:"props"`
+	Neighbors []*Neighbor `json:"neighbors"`
+}
+
+type Path struct {
+	Nodes []*Node `json:"nodes"`
+	Edges []*Edge `json:"edges"`
+}
+
+type Query struct {
 }
 
 type Recommendation struct {
@@ -69,7 +64,16 @@ type Recommendation struct {
 	Rationale          string   `json:"rationale"`
 }
 
-type Export struct {
-	Filename string `json:"filename"`
-	Content  string `json:"content"`
+type Snapshot struct {
+	ID        string  `json:"id"`
+	CreatedAt string  `json:"createdAt"`
+	Label     *string `json:"label,omitempty"`
+	NodeCount int     `json:"nodeCount"`
+	EdgeCount int     `json:"edgeCount"`
+}
+
+type SnapshotDiff struct {
+	AddedEdges   []*Edge      `json:"addedEdges"`
+	RemovedEdges []*Edge      `json:"removedEdges"`
+	Summary      *DiffSummary `json:"summary"`
 }

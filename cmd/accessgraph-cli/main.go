@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -10,32 +11,36 @@ import (
 
 	"github.com/jamesolaitan/accessgraph/internal/config"
 	"github.com/jamesolaitan/accessgraph/internal/graph"
+	redactlog "github.com/jamesolaitan/accessgraph/internal/log"
 	"github.com/jamesolaitan/accessgraph/internal/policy"
 	"github.com/jamesolaitan/accessgraph/internal/reco"
 	"github.com/jamesolaitan/accessgraph/internal/store"
 )
 
 func main() {
+	log.SetOutput(&redactlog.RedactWriter{Out: os.Stderr})
+
 	if len(os.Args) < 2 {
 		printUsage()
 		os.Exit(1)
 	}
 
 	cfg := config.Load()
+	ctx := context.Background()
 
 	command := os.Args[1]
 
 	switch command {
 	case "snapshots":
-		handleSnapshots(cfg)
+		handleSnapshots(ctx, cfg)
 	case "findings":
-		handleFindings(cfg)
+		handleFindings(ctx, cfg)
 	case "graph":
-		handleGraph(cfg)
+		handleGraph(ctx, cfg)
 	case "attack-path":
-		handleAttackPath(cfg)
+		handleAttackPath(ctx, cfg)
 	case "recommend":
-		handleRecommend(cfg)
+		handleRecommend(ctx, cfg)
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
 		printUsage()
@@ -57,7 +62,7 @@ Usage:
 `)
 }
 
-func handleSnapshots(cfg *config.Config) {
+func handleSnapshots(ctx context.Context, cfg *config.Config) {
 	if len(os.Args) < 3 {
 		fmt.Println("Usage: accessgraph-cli snapshots <ls|diff>")
 		os.Exit(1)
@@ -73,7 +78,7 @@ func handleSnapshots(cfg *config.Config) {
 
 	switch subcommand {
 	case "ls":
-		snapshots, err := st.ListSnapshots()
+		snapshots, err := st.ListSnapshots(ctx)
 		if err != nil {
 			log.Fatalf("Failed to list snapshots: %v", err)
 		}
@@ -81,8 +86,16 @@ func handleSnapshots(cfg *config.Config) {
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 		fmt.Fprintln(w, "ID\tCREATED\tLABEL\tNODES\tEDGES")
 		for _, snap := range snapshots {
-			nodeCount, _ := st.CountNodes(snap.ID)
-			edgeCount, _ := st.CountEdges(snap.ID)
+			nodeCount, err := st.CountNodes(ctx, snap.ID)
+			if err != nil {
+				log.Fatalf("Failed to count nodes for snapshot %s: %v", snap.ID, err)
+			}
+
+			edgeCount, err := st.CountEdges(ctx, snap.ID)
+			if err != nil {
+				log.Fatalf("Failed to count edges for snapshot %s: %v", snap.ID, err)
+			}
+
 			fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%d\n",
 				snap.ID, snap.CreatedAt.Format("2006-01-02 15:04:05"),
 				snap.Label, nodeCount, edgeCount)
@@ -93,19 +106,21 @@ func handleSnapshots(cfg *config.Config) {
 		fs := flag.NewFlagSet("diff", flag.ExitOnError)
 		idA := fs.String("a", "", "First snapshot ID")
 		idB := fs.String("b", "", "Second snapshot ID")
-		_ = fs.Parse(os.Args[3:])
+		if err := fs.Parse(os.Args[3:]); err != nil {
+			log.Fatalf("Failed to parse flags: %v", err)
+		}
 
 		if *idA == "" || *idB == "" {
 			fmt.Println("Usage: accessgraph-cli snapshots diff --a <idA> --b <idB>")
 			os.Exit(1)
 		}
 
-		edgesA, err := st.GetEdges(*idA)
+		edgesA, err := st.GetEdges(ctx, *idA)
 		if err != nil {
 			log.Fatalf("Failed to get edges for %s: %v", *idA, err)
 		}
 
-		edgesB, err := st.GetEdges(*idB)
+		edgesB, err := st.GetEdges(ctx, *idB)
 		if err != nil {
 			log.Fatalf("Failed to get edges for %s: %v", *idB, err)
 		}
@@ -167,11 +182,13 @@ func handleSnapshots(cfg *config.Config) {
 	}
 }
 
-func handleFindings(cfg *config.Config) {
+func handleFindings(ctx context.Context, cfg *config.Config) {
 	fs := flag.NewFlagSet("findings", flag.ExitOnError)
 	snapshotID := fs.String("snapshot", "", "Snapshot ID")
 	format := fs.String("format", "table", "Output format (table|json)")
-	_ = fs.Parse(os.Args[2:])
+	if err := fs.Parse(os.Args[2:]); err != nil {
+		log.Fatalf("Failed to parse flags: %v", err)
+	}
 
 	if *snapshotID == "" {
 		fmt.Println("Usage: accessgraph-cli findings --snapshot <id> [--format table|json]")
@@ -184,7 +201,7 @@ func handleFindings(cfg *config.Config) {
 	}
 	defer st.Close()
 
-	g, err := st.LoadSnapshot(*snapshotID)
+	g, err := st.LoadSnapshot(ctx, *snapshotID)
 	if err != nil {
 		log.Fatalf("Failed to load snapshot: %v", err)
 	}
@@ -192,7 +209,7 @@ func handleFindings(cfg *config.Config) {
 	input := policy.BuildInput(g)
 
 	opaClient := policy.NewClient(cfg.OPAUrl)
-	findings, err := opaClient.Evaluate(input)
+	findings, err := opaClient.Evaluate(ctx, input)
 	if err != nil {
 		log.Fatalf("Failed to evaluate policies: %v", err)
 	}
@@ -200,7 +217,9 @@ func handleFindings(cfg *config.Config) {
 	if *format == "json" {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
-		_ = enc.Encode(findings)
+		if err := enc.Encode(findings); err != nil {
+			log.Fatalf("Failed to encode findings: %v", err)
+		}
 	} else {
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 		fmt.Fprintln(w, "RULE_ID\tSEVERITY\tENTITY\tREASON")
@@ -211,7 +230,7 @@ func handleFindings(cfg *config.Config) {
 	}
 }
 
-func handleGraph(cfg *config.Config) {
+func handleGraph(ctx context.Context, cfg *config.Config) {
 	if len(os.Args) < 3 {
 		fmt.Println("Usage: accessgraph-cli graph <path|export>")
 		os.Exit(1)
@@ -221,9 +240,9 @@ func handleGraph(cfg *config.Config) {
 
 	switch subcommand {
 	case "path":
-		handleGraphPath(cfg)
+		handleGraphPath(ctx, cfg)
 	case "export":
-		handleGraphExport(cfg)
+		handleGraphExport(ctx, cfg)
 	default:
 		fmt.Printf("Unknown subcommand: %s\n", subcommand)
 		fmt.Println("Usage: accessgraph-cli graph <path|export>")
@@ -231,12 +250,13 @@ func handleGraph(cfg *config.Config) {
 	}
 }
 
-func handleGraphPath(cfg *config.Config) {
-
+func handleGraphPath(ctx context.Context, cfg *config.Config) {
 	fs := flag.NewFlagSet("path", flag.ExitOnError)
 	from := fs.String("from", "", "Source node ID")
 	to := fs.String("to", "", "Destination node ID")
-	_ = fs.Parse(os.Args[3:])
+	if err := fs.Parse(os.Args[3:]); err != nil {
+		log.Fatalf("Failed to parse flags: %v", err)
+	}
 
 	if *from == "" || *to == "" {
 		fmt.Println("Usage: accessgraph-cli graph path --from <principalID> --to <resourceID>")
@@ -250,7 +270,7 @@ func handleGraphPath(cfg *config.Config) {
 	defer st.Close()
 
 	// Get most recent snapshot
-	snapshots, err := st.ListSnapshots()
+	snapshots, err := st.ListSnapshots(ctx)
 	if err != nil {
 		log.Fatalf("Failed to list snapshots: %v", err)
 	}
@@ -260,7 +280,7 @@ func handleGraphPath(cfg *config.Config) {
 
 	snapshotID := snapshots[0].ID
 
-	g, err := st.LoadSnapshot(snapshotID)
+	g, err := st.LoadSnapshot(ctx, snapshotID)
 	if err != nil {
 		log.Fatalf("Failed to load snapshot: %v", err)
 	}
@@ -280,12 +300,14 @@ func handleGraphPath(cfg *config.Config) {
 	}
 }
 
-func handleGraphExport(cfg *config.Config) {
+func handleGraphExport(ctx context.Context, cfg *config.Config) {
 	fs := flag.NewFlagSet("export", flag.ExitOnError)
 	snapshotID := fs.String("snapshot", "", "Snapshot ID")
 	format := fs.String("format", "cypher", "Export format (cypher)")
 	outFile := fs.String("out", "", "Output file")
-	_ = fs.Parse(os.Args[3:])
+	if err := fs.Parse(os.Args[3:]); err != nil {
+		log.Fatalf("Failed to parse flags: %v", err)
+	}
 
 	if *snapshotID == "" || *outFile == "" {
 		fmt.Println("Usage: accessgraph-cli graph export --snapshot <id> --format cypher --out <file>")
@@ -298,7 +320,7 @@ func handleGraphExport(cfg *config.Config) {
 	}
 	defer st.Close()
 
-	g, err := st.LoadSnapshot(*snapshotID)
+	g, err := st.LoadSnapshot(ctx, *snapshotID)
 	if err != nil {
 		log.Fatalf("Failed to load snapshot: %v", err)
 	}
@@ -322,7 +344,7 @@ func handleGraphExport(cfg *config.Config) {
 	fmt.Printf("Exported snapshot %s to %s (%d bytes)\n", *snapshotID, *outFile, len(content))
 }
 
-func handleAttackPath(cfg *config.Config) {
+func handleAttackPath(ctx context.Context, cfg *config.Config) {
 	fs := flag.NewFlagSet("attack-path", flag.ExitOnError)
 	from := fs.String("from", "", "Source principal ID")
 	to := fs.String("to", "", "Destination resource ID (optional with --tag)")
@@ -331,7 +353,9 @@ func handleAttackPath(cfg *config.Config) {
 	outMD := fs.String("out", "", "Output Markdown file")
 	outSARIF := fs.String("sarif", "", "Output SARIF file")
 	formatFlag := fs.String("format", "table", "Output format (table|json)")
-	_ = fs.Parse(os.Args[2:])
+	if err := fs.Parse(os.Args[2:]); err != nil {
+		log.Fatalf("Failed to parse flags: %v", err)
+	}
 
 	if *from == "" {
 		fmt.Println("Usage: accessgraph-cli attack-path --from <id> [--to <id>] [--tag sensitive] [--max-hops 8] [--out path.md] [--sarif findings.sarif]")
@@ -345,7 +369,7 @@ func handleAttackPath(cfg *config.Config) {
 	defer st.Close()
 
 	// Get most recent snapshot
-	snapshots, err := st.ListSnapshots()
+	snapshots, err := st.ListSnapshots(ctx)
 	if err != nil {
 		log.Fatalf("Failed to list snapshots: %v", err)
 	}
@@ -355,7 +379,7 @@ func handleAttackPath(cfg *config.Config) {
 
 	snapshotID := snapshots[0].ID
 
-	g, err := st.LoadSnapshot(snapshotID)
+	g, err := st.LoadSnapshot(ctx, snapshotID)
 	if err != nil {
 		log.Fatalf("Failed to load snapshot: %v", err)
 	}
@@ -381,12 +405,14 @@ func handleAttackPath(cfg *config.Config) {
 	if *formatFlag == "json" {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
-		_ = enc.Encode(map[string]interface{}{
+		if err := enc.Encode(map[string]interface{}{
 			"found": result.Found,
 			"nodes": result.Nodes,
 			"edges": result.Edges,
 			"hops":  len(result.Nodes) - 1,
-		})
+		}); err != nil {
+			log.Fatalf("Failed to encode output: %v", err)
+		}
 	} else {
 		targetID := *to
 		if targetID == "" && len(result.Nodes) > 0 {
@@ -439,7 +465,7 @@ func handleAttackPath(cfg *config.Config) {
 	}
 }
 
-func handleRecommend(cfg *config.Config) {
+func handleRecommend(ctx context.Context, cfg *config.Config) {
 	fs := flag.NewFlagSet("recommend", flag.ExitOnError)
 	snapshotID := fs.String("snapshot", "", "Snapshot ID")
 	policyID := fs.String("policy", "", "Policy ID")
@@ -448,7 +474,9 @@ func handleRecommend(cfg *config.Config) {
 	cap := fs.Int("cap", 20, "Maximum suggestions")
 	outFile := fs.String("out", "", "Output JSON file")
 	formatFlag := fs.String("format", "table", "Output format (table|json)")
-	_ = fs.Parse(os.Args[2:])
+	if err := fs.Parse(os.Args[2:]); err != nil {
+		log.Fatalf("Failed to parse flags: %v", err)
+	}
 
 	if *snapshotID == "" || *policyID == "" {
 		fmt.Println("Usage: accessgraph-cli recommend --snapshot <id> --policy <policyId> [--target <id>] [--tag sensitive] [--cap 20] [--out reco.json]")
@@ -461,7 +489,7 @@ func handleRecommend(cfg *config.Config) {
 	}
 	defer st.Close()
 
-	g, err := st.LoadSnapshot(*snapshotID)
+	g, err := st.LoadSnapshot(ctx, *snapshotID)
 	if err != nil {
 		log.Fatalf("Failed to load snapshot: %v", err)
 	}

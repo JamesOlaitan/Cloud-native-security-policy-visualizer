@@ -1,14 +1,12 @@
 import React, { useEffect, useRef } from 'react'
 import cytoscape from 'cytoscape'
-import dagre from 'cytoscape-dagre'
-
-cytoscape.use(dagre)
+import { GraphNode, Neighbor, Path } from '../types'
 
 interface GraphPaneProps {
-  centerNode: any
-  neighbors: any[]
-  pathData?: any
-  onNodeClick: (node: any) => void
+  centerNode: GraphNode
+  neighbors: Neighbor[]
+  pathData?: Path
+  onNodeClick: (node: { id: string; kind: string; labels?: string[]; props?: { key: string; value: string }[] }) => void
 }
 
 export default function GraphPane({ centerNode, neighbors, pathData, onNodeClick }: GraphPaneProps) {
@@ -19,15 +17,15 @@ export default function GraphPane({ centerNode, neighbors, pathData, onNodeClick
     if (!containerRef.current) return
 
     // Build cytoscape elements
-    const elements: any[] = []
+    const elements: cytoscape.ElementDefinition[] = []
 
     // Add center node
     elements.push({
       data: {
+        ...centerNode,
         id: centerNode.id,
         label: centerNode.labels.join(', '),
         kind: centerNode.kind,
-        ...centerNode,
       },
     })
 
@@ -35,10 +33,10 @@ export default function GraphPane({ centerNode, neighbors, pathData, onNodeClick
     neighbors.forEach((neighbor) => {
       elements.push({
         data: {
+          ...neighbor,
           id: neighbor.id,
           label: neighbor.labels.join(', '),
           kind: neighbor.kind,
-          ...neighbor,
         },
       })
 
@@ -121,7 +119,7 @@ export default function GraphPane({ centerNode, neighbors, pathData, onNodeClick
         rankDir: 'LR',
         nodeSep: 50,
         rankSep: 100,
-      } as any,
+      } as cytoscape.LayoutOptions,
     })
 
     // Add click handler
@@ -147,12 +145,12 @@ export default function GraphPane({ centerNode, neighbors, pathData, onNodeClick
     cy.elements().removeClass('highlighted')
 
     // Highlight path nodes and edges
-    const pathNodeIds = pathData.nodes.map((n: any) => n.id)
-    pathNodeIds.forEach((id: string) => {
+    const pathNodeIds = pathData.nodes.map((n) => n.id)
+    pathNodeIds.forEach((id) => {
       cy.getElementById(id).addClass('highlighted')
     })
 
-    pathData.edges.forEach((edge: any) => {
+    pathData.edges.forEach((edge) => {
       const cyEdge = cy.edges().filter((e) => {
         const data = e.data()
         return data.source === edge.from && data.target === edge.to
@@ -163,4 +161,3 @@ export default function GraphPane({ centerNode, neighbors, pathData, onNodeClick
 
   return <div ref={containerRef} className="graph-canvas" style={{ width: '100%', height: '100%' }} />
 }
-

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"text/template"
+	"time"
 
 	"github.com/jamesolaitan/accessgraph/internal/ingest"
 )
@@ -67,7 +68,7 @@ func ExportMarkdownAttackPath(fromID, toID string, nodes []ingest.Node, edges []
 		From: fromID,
 		To:   toID,
 		Hops: len(nodes) - 1,
-		Date: "2025-10-08", // Could use time.Now() but keeping deterministic for tests
+		Date: time.Now().Format("2006-01-02"),
 	}
 
 	// Build steps
@@ -143,7 +144,7 @@ func analyzePathRisks(nodes []ingest.Node, edges []ingest.Edge) []string {
 
 	// Check for admin privileges
 	for _, node := range nodes {
-		if node.Kind == ingest.POLICY {
+		if node.Kind == ingest.KindPolicy {
 			if val, ok := node.Props["name"]; ok {
 				if val == "AdministratorAccess" || val == "cluster-admin" {
 					risks = append(risks, "**Administrator privileges in path** - excessive access")

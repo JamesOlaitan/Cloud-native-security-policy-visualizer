@@ -1,9 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { gql, useQuery, useLazyQuery } from '@apollo/client'
 import cytoscape from 'cytoscape'
 import dagre from 'cytoscape-dagre'
 import GraphPane from '../components/GraphPane'
+import { GraphNode, Neighbor, Path, KV } from '../types'
 
 cytoscape.use(dagre)
 
@@ -44,25 +45,32 @@ const SHORTEST_PATH = gql`
   }
 `
 
+interface SelectedNodeData {
+  id: string
+  kind: string
+  labels?: string[]
+  props?: KV[]
+}
+
 export default function GraphView() {
   const { nodeId } = useParams<{ nodeId: string }>()
   const decodedNodeId = nodeId ? decodeURIComponent(nodeId) : ''
-  const [selectedNode, setSelectedNode] = useState<any>(null)
+  const [selectedNode, setSelectedNode] = useState<SelectedNodeData | null>(null)
   const [targetResource, setTargetResource] = useState('')
-  const [pathData, setPathData] = useState<any>(null)
+  const [pathData, setPathData] = useState<Path | null>(null)
 
-  const { loading, error, data } = useQuery(NODE_QUERY, {
+  const { loading, error, data } = useQuery<{ node: GraphNode }>(NODE_QUERY, {
     variables: { id: decodedNodeId },
     skip: !decodedNodeId,
   })
 
-  const [findPath, { loading: pathLoading }] = useLazyQuery(SHORTEST_PATH, {
+  const [findPath, { loading: pathLoading }] = useLazyQuery<{ shortestPath: Path }>(SHORTEST_PATH, {
     onCompleted: (pathResult) => {
       setPathData(pathResult.shortestPath)
     },
   })
 
-  const handleNodeClick = (node: any) => {
+  const handleNodeClick = (node: SelectedNodeData) => {
     setSelectedNode(node)
   }
 
@@ -83,42 +91,53 @@ export default function GraphView() {
   if (!data?.node) return <div className="error">Node not found</div>
 
   const node = data.node
-  const neighbors = node.neighbors || []
+  const neighbors: Neighbor[] = node.neighbors || []
 
   // Extract resource nodes for path finding
-  const resourceNodes = neighbors.filter((n: any) => n.kind === 'RESOURCE')
+  const resourceNodes = neighbors.filter((n) => n.kind === 'RESOURCE')
 
   return (
     <div>
       <h2 className="page-title">Graph View: {node.labels.join(', ')}</h2>
-      
+
       <div className="graph-container">
         <GraphPane
           centerNode={node}
           neighbors={neighbors}
-          pathData={pathData}
+          pathData={pathData ?? undefined}
           onNodeClick={handleNodeClick}
         />
-        
+
         <div className="graph-sidebar">
           <div className="path-controls">
             <h3>Find Path</h3>
-            <select
+            <input
+              type="text"
+              className="search-box"
+              placeholder="Enter target resource ID..."
               value={targetResource}
               onChange={(e) => setTargetResource(e.target.value)}
-            >
-              <option value="">Select resource...</option>
-              {resourceNodes.map((n: any) => (
-                <option key={n.id} value={n.id}>
-                  {n.labels.join(', ')}
-                </option>
-              ))}
-            </select>
+              style={{ marginBottom: '10px', width: '100%' }}
+            />
+            {resourceNodes.length > 0 && (
+              <select
+                value={targetResource}
+                onChange={(e) => setTargetResource(e.target.value)}
+                style={{ marginBottom: '10px' }}
+              >
+                <option value="">Or select neighbor resource...</option>
+                {resourceNodes.map((n) => (
+                  <option key={n.id} value={n.id}>
+                    {n.labels.join(', ')}
+                  </option>
+                ))}
+              </select>
+            )}
             <button onClick={handleFindPath} disabled={!targetResource || pathLoading}>
               {pathLoading ? 'Finding...' : 'Find Path'}
             </button>
           </div>
-          
+
           {selectedNode && (
             <div className="node-details">
               <h3>Node Details</h3>
@@ -126,7 +145,7 @@ export default function GraphView() {
                 <li><strong>ID:</strong> {selectedNode.id}</li>
                 <li><strong>Kind:</strong> {selectedNode.kind}</li>
                 <li><strong>Labels:</strong> {selectedNode.labels?.join(', ')}</li>
-                {selectedNode.props?.map((prop: any) => (
+                {selectedNode.props?.map((prop) => (
                   <li key={prop.key}>
                     <strong>{prop.key}:</strong> {prop.value}
                   </li>
@@ -139,4 +158,3 @@ export default function GraphView() {
     </div>
   )
 }
-

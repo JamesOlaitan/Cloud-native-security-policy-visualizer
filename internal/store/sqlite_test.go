@@ -1,6 +1,7 @@
 package store
 
 import (
+	"context"
 	"os"
 	"testing"
 
@@ -9,6 +10,8 @@ import (
 )
 
 func TestStoreRoundTrip(t *testing.T) {
+	ctx := context.Background()
+
 	// Create temp database
 	tmpFile := t.TempDir() + "/test.db"
 	defer os.Remove(tmpFile)
@@ -51,13 +54,13 @@ func TestStoreRoundTrip(t *testing.T) {
 	}
 
 	// Save snapshot
-	err = store.SaveSnapshot("test-snapshot", "test-label", g)
+	err = store.SaveSnapshot(ctx, "test-snapshot", "test-label", g)
 	if err != nil {
 		t.Fatalf("Failed to save snapshot: %v", err)
 	}
 
 	// Load snapshot
-	loaded, err := store.LoadSnapshot("test-snapshot")
+	loaded, err := store.LoadSnapshot(ctx, "test-snapshot")
 	if err != nil {
 		t.Fatalf("Failed to load snapshot: %v", err)
 	}
@@ -83,7 +86,7 @@ func TestStoreRoundTrip(t *testing.T) {
 	}
 
 	// List snapshots
-	snapshots, err := store.ListSnapshots()
+	snapshots, err := store.ListSnapshots(ctx)
 	if err != nil {
 		t.Fatalf("Failed to list snapshots: %v", err)
 	}
@@ -93,7 +96,7 @@ func TestStoreRoundTrip(t *testing.T) {
 	}
 
 	// Get snapshot
-	snap, err := store.GetSnapshot("test-snapshot")
+	snap, err := store.GetSnapshot(ctx, "test-snapshot")
 	if err != nil {
 		t.Fatalf("Failed to get snapshot: %v", err)
 	}
@@ -103,7 +106,7 @@ func TestStoreRoundTrip(t *testing.T) {
 	}
 
 	// Count nodes and edges
-	nodeCount, err := store.CountNodes("test-snapshot")
+	nodeCount, err := store.CountNodes(ctx, "test-snapshot")
 	if err != nil {
 		t.Fatalf("Failed to count nodes: %v", err)
 	}
@@ -111,7 +114,7 @@ func TestStoreRoundTrip(t *testing.T) {
 		t.Errorf("Expected 2 nodes, got %d", nodeCount)
 	}
 
-	edgeCount, err := store.CountEdges("test-snapshot")
+	edgeCount, err := store.CountEdges(ctx, "test-snapshot")
 	if err != nil {
 		t.Fatalf("Failed to count edges: %v", err)
 	}
@@ -121,6 +124,8 @@ func TestStoreRoundTrip(t *testing.T) {
 }
 
 func TestSearchPrincipals(t *testing.T) {
+	ctx := context.Background()
+
 	tmpFile := t.TempDir() + "/test.db"
 	defer os.Remove(tmpFile)
 
@@ -141,13 +146,13 @@ func TestSearchPrincipals(t *testing.T) {
 
 	g.AddNode(node)
 
-	err = store.SaveSnapshot("test", "test", g)
+	err = store.SaveSnapshot(ctx, "test", "test", g)
 	if err != nil {
 		t.Fatalf("Failed to save: %v", err)
 	}
 
 	// Search
-	results, err := store.SearchPrincipals("test", "DevRole", 10)
+	results, err := store.SearchPrincipals(ctx, "test", "DevRole", 10)
 	if err != nil {
 		t.Fatalf("Search failed: %v", err)
 	}

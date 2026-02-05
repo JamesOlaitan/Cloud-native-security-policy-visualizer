@@ -3,6 +3,7 @@ package ingest
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 )
 
@@ -88,11 +89,11 @@ func TestParseTerraformMissing(t *testing.T) {
 func TestContains(t *testing.T) {
 	slice := []string{"a", "b", "c"}
 
-	if !contains(slice, "b") {
+	if !slices.Contains(slice, "b") {
 		t.Error("Expected contains to find 'b'")
 	}
 
-	if contains(slice, "d") {
+	if slices.Contains(slice, "d") {
 		t.Error("Expected contains not to find 'd'")
 	}
 }

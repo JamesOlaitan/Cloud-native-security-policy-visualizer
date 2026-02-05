@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -14,6 +15,8 @@ import (
 )
 
 func main() {
+	log.SetOutput(&logpkg.RedactWriter{Out: os.Stderr})
+
 	var (
 		awsDir     = flag.String("aws", "", "Path to AWS JSON directory")
 		k8sDir     = flag.String("k8s", "", "Path to Kubernetes YAML directory")
@@ -111,7 +114,8 @@ func main() {
 	}
 	defer st.Close()
 
-	if err := st.SaveSnapshot(*snapshotID, label, g); err != nil {
+	ctx := context.Background()
+	if err := st.SaveSnapshot(ctx, *snapshotID, label, g); err != nil {
 		log.Fatalf("Failed to save snapshot: %v", err)
 	}
 

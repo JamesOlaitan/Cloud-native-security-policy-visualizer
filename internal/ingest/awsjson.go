@@ -65,6 +65,10 @@ func ParseAWS(dirPath string) (ParseResult, error) {
 	}
 	result.Merge(roles)
 
+	// Build a lookup from role name to ARN using the already-parsed role nodes.
+	// This avoids hardcoding an AWS account ID when resolving attachments.
+	roleNameToARN := buildRoleNameToARNMap(roles.Nodes)
+
 	// Parse policies
 	policiesPath := filepath.Join(dirPath, "policies.json")
 	policies, err := parsePolicies(policiesPath)
@@ -75,13 +79,27 @@ func ParseAWS(dirPath string) (ParseResult, error) {
 
 	// Parse attachments
 	attachmentsPath := filepath.Join(dirPath, "attachments.json")
-	attachments, err := parseAttachments(attachmentsPath)
+	attachments, err := parseAttachments(attachmentsPath, roleNameToARN)
 	if err != nil {
 		return result, fmt.Errorf("parsing attachments: %w", err)
 	}
 	result.Merge(attachments)
 
 	return result, nil
+}
+
+// buildRoleNameToARNMap creates a mapping from role name to full ARN
+// by inspecting role nodes that were already parsed from roles.json.
+func buildRoleNameToARNMap(nodes []Node) map[string]string {
+	roleNameToARN := make(map[string]string, len(nodes))
+	for _, node := range nodes {
+		if node.Kind == KindPrincipal {
+			if name, ok := node.Props["name"]; ok {
+				roleNameToARN[name] = node.ID
+			}
+		}
+	}
+	return roleNameToARN
 }
 
 func parseRoles(path string) (ParseResult, error) {
@@ -227,12 +245,7 @@ func parsePolicies(path string) (ParseResult, error) {
 			actions := parseStringOrArray(stmt.Action)
 			resources := parseStringOrArray(stmt.Resource)
 
-			hasWildcard := false
 			for _, action := range actions {
-				if strings.Contains(action, "*") {
-					hasWildcard = true
-				}
-
 				// Create permission node
 				permID := fmt.Sprintf("%s#stmt%d#%s", policy.Arn, i, action)
 				result.Nodes = append(result.Nodes, Node{
@@ -277,17 +290,13 @@ func parsePolicies(path string) (ParseResult, error) {
 					})
 				}
 			}
-
-			if hasWildcard {
-				result.Nodes = append(result.Nodes[:len(result.Nodes)-len(resources)], result.Nodes[len(result.Nodes)-len(resources):]...)
-			}
 		}
 	}
 
 	return result, nil
 }
 
-func parseAttachments(path string) (ParseResult, error) {
+func parseAttachments(path string, roleNameToARN map[string]string) (ParseResult, error) {
 	result := ParseResult{}
 
 	data, err := os.ReadFile(path)
@@ -301,10 +310,15 @@ func parseAttachments(path string) (ParseResult, error) {
 	}
 
 	for _, attachment := range attachments {
-		for _, policy := range attachment.AttachedPolicies {
-			// Extract account from role name (assuming standard format)
-			roleArn := fmt.Sprintf("arn:aws:iam::111111111111:role/%s", attachment.RoleName)
+		// Derive the role ARN from already-parsed roles instead of hardcoding
+		// an account ID. This ensures correctness across different AWS accounts.
+		roleArn, ok := roleNameToARN[attachment.RoleName]
+		if !ok {
+			// Skip attachments for roles we don't have data for
+			continue
+		}
 
+		for _, policy := range attachment.AttachedPolicies {
 			result.Edges = append(result.Edges, Edge{
 				Src:  roleArn,
 				Dst:  policy.PolicyArn,

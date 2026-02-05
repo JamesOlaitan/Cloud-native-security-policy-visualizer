@@ -12,7 +12,7 @@ func TestExportMarkdownAttackPath(t *testing.T) {
 	nodes := []ingest.Node{
 		{
 			ID:     "arn:aws:iam::123456789012:role/DevRole",
-			Kind:   ingest.PRINCIPAL,
+			Kind:   ingest.KindPrincipal,
 			Labels: []string{"aws", "role"},
 			Props: map[string]string{
 				"name": "DevRole",
@@ -20,7 +20,7 @@ func TestExportMarkdownAttackPath(t *testing.T) {
 		},
 		{
 			ID:     "arn:aws:iam::123456789012:policy/DevDataAccess",
-			Kind:   ingest.POLICY,
+			Kind:   ingest.KindPolicy,
 			Labels: []string{"aws", "policy"},
 			Props: map[string]string{
 				"name": "DevDataAccess",
@@ -28,7 +28,7 @@ func TestExportMarkdownAttackPath(t *testing.T) {
 		},
 		{
 			ID:     "arn:aws:s3:::data-bkt",
-			Kind:   ingest.RESOURCE,
+			Kind:   ingest.KindResource,
 			Labels: []string{"aws", "s3"},
 			Props: map[string]string{
 				"name":      "data-bkt",
@@ -103,7 +103,7 @@ func TestExportMarkdownWithWildcards(t *testing.T) {
 	nodes := []ingest.Node{
 		{
 			ID:     "arn:aws:iam::123456789012:role/AdminRole",
-			Kind:   ingest.PRINCIPAL,
+			Kind:   ingest.KindPrincipal,
 			Labels: []string{"aws", "role"},
 			Props: map[string]string{
 				"name": "AdminRole",
@@ -111,7 +111,7 @@ func TestExportMarkdownWithWildcards(t *testing.T) {
 		},
 		{
 			ID:     "arn:aws:iam::123456789012:policy/AdminPolicy",
-			Kind:   ingest.POLICY,
+			Kind:   ingest.KindPolicy,
 			Labels: []string{"aws", "policy"},
 			Props: map[string]string{
 				"name": "AdministratorAccess",
@@ -119,7 +119,7 @@ func TestExportMarkdownWithWildcards(t *testing.T) {
 		},
 		{
 			ID:     "arn:aws:s3:::prod-data",
-			Kind:   ingest.RESOURCE,
+			Kind:   ingest.KindResource,
 			Labels: []string{"aws", "s3"},
 			Props:  map[string]string{},
 		},
@@ -168,13 +168,13 @@ func TestExportMarkdownWithCrossAccount(t *testing.T) {
 	nodes := []ingest.Node{
 		{
 			ID:     "arn:aws:iam::111111111111:role/DevRole",
-			Kind:   ingest.PRINCIPAL,
+			Kind:   ingest.KindPrincipal,
 			Labels: []string{"aws", "role"},
 			Props:  map[string]string{},
 		},
 		{
 			ID:     "arn:aws:iam::222222222222:role/TargetRole",
-			Kind:   ingest.PRINCIPAL,
+			Kind:   ingest.KindPrincipal,
 			Labels: []string{"aws", "role"},
 			Props:  map[string]string{},
 		},

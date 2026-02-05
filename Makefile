@@ -50,17 +50,17 @@ demo:
 	@echo "Running demo ingestion..."
 	@mkdir -p data
 	@echo "Ingesting demo1 snapshot..."
-	go run ./cmd/accessgraph-ingest --aws sample/aws --k8s sample/k8s --snapshot demo1
+	SQLITE_PATH=data/graph.db go run ./cmd/accessgraph-ingest --aws sample/aws --k8s sample/k8s --snapshot demo1
 	@echo "Ingesting demo2 snapshot (with Terraform)..."
-	go run ./cmd/accessgraph-ingest --aws sample/aws --k8s sample/k8s --tf sample/terraform/plan.json --snapshot demo2
+	SQLITE_PATH=data/graph.db go run ./cmd/accessgraph-ingest --aws sample/aws --k8s sample/k8s --tf sample/terraform/plan.json --snapshot demo2
 	@echo "Listing snapshots..."
-	go run ./cmd/accessgraph-cli snapshots ls
+	SQLITE_PATH=data/graph.db go run ./cmd/accessgraph-cli snapshots ls
 	@echo "Demo ingestion complete!"
 
 # Run demo diff
 demo-diff:
 	@echo "Running snapshot diff..."
-	go run ./cmd/accessgraph-cli snapshots diff --a demo1 --b demo2
+	SQLITE_PATH=data/graph.db go run ./cmd/accessgraph-cli snapshots diff --a demo1 --b demo2
 	@echo "Diff complete!"
 
 # Clean build artifacts

@@ -7,6 +7,10 @@ import (
 )
 
 func TestOfflineMode(t *testing.T) {
+	// Save and restore http.DefaultTransport so this test doesn't affect others
+	origTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = origTransport })
+
 	// Enable offline mode with IMDS blocking
 	EnableOfflineMode(true)
 
@@ -95,6 +99,9 @@ func TestIMDSBlocking(t *testing.T) {
 }
 
 func TestOnlineModeWithIMDSBlock(t *testing.T) {
+	origTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = origTransport })
+
 	EnableOnlineModeWithIMDSBlock()
 
 	// Test that IMDS is still blocked in online mode

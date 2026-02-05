@@ -2,11 +2,15 @@ package policy
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 )
+
+const opaClientTimeout = 10 * time.Second
 
 // Client is an OPA HTTP client
 type Client struct {
@@ -33,13 +37,15 @@ type OPAResponse struct {
 // NewClient creates a new OPA client
 func NewClient(baseURL string) *Client {
 	return &Client{
-		baseURL:    baseURL,
-		httpClient: &http.Client{},
+		baseURL: baseURL,
+		httpClient: &http.Client{
+			Timeout: opaClientTimeout,
+		},
 	}
 }
 
 // Evaluate sends input to OPA and returns findings
-func (c *Client) Evaluate(input map[string]interface{}) ([]Finding, error) {
+func (c *Client) Evaluate(ctx context.Context, input map[string]interface{}) ([]Finding, error) {
 	inputWrapper := map[string]interface{}{
 		"input": input,
 	}
@@ -49,7 +55,13 @@ func (c *Client) Evaluate(input map[string]interface{}) ([]Finding, error) {
 		return nil, fmt.Errorf("marshaling input: %w", err)
 	}
 
-	resp, err := c.httpClient.Post(c.baseURL, "application/json", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("creating OPA request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("calling OPA: %w", err)
 	}

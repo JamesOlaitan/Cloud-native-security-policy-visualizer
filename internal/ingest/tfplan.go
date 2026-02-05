@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 )
 
@@ -66,7 +67,7 @@ func ParseTerraform(path string) (ParseResult, bool, error) {
 
 	// Process resource changes to detect permission expansions
 	for _, change := range plan.ResourceChanges {
-		if change.Type == "aws_iam_policy" && contains(change.Change.Actions, "update") {
+		if change.Type == "aws_iam_policy" && slices.Contains(change.Change.Actions, "update") {
 			beforePolicy, _ := change.Change.Before["policy"].(string)
 			afterPolicy, _ := change.Change.After["policy"].(string)
 
@@ -162,11 +163,3 @@ func parseTFPolicy(address, policyJSON string) ParseResult {
 	return result
 }
 
-func contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
-}

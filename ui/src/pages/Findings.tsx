@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { gql, useQuery } from '@apollo/client'
+import { Finding, Snapshot } from '../types'
 
 const SNAPSHOTS_QUERY = gql`
   query GetSnapshots {
@@ -27,14 +28,14 @@ const FINDINGS_QUERY = gql`
 export default function Findings() {
   const [selectedSnapshot, setSelectedSnapshot] = useState('')
 
-  const { data: snapshotsData } = useQuery(SNAPSHOTS_QUERY)
-  const { loading, error, data } = useQuery(FINDINGS_QUERY, {
+  const { data: snapshotsData } = useQuery<{ snapshots: Snapshot[] }>(SNAPSHOTS_QUERY)
+  const { loading, error, data } = useQuery<{ findings: Finding[] }>(FINDINGS_QUERY, {
     variables: { snapshotId: selectedSnapshot },
     skip: !selectedSnapshot,
   })
 
   useEffect(() => {
-    if (snapshotsData?.snapshots?.length > 0 && !selectedSnapshot) {
+    if (snapshotsData?.snapshots?.length && !selectedSnapshot) {
       setSelectedSnapshot(snapshotsData.snapshots[0].id)
     }
   }, [snapshotsData, selectedSnapshot])
@@ -44,7 +45,7 @@ export default function Findings() {
   return (
     <div>
       <h2 className="page-title">Policy Findings</h2>
-      
+
       {snapshotsData?.snapshots && (
         <div style={{ marginBottom: '1rem' }}>
           <select
@@ -52,7 +53,7 @@ export default function Findings() {
             onChange={(e) => setSelectedSnapshot(e.target.value)}
             style={{ padding: '0.5rem', fontSize: '1rem' }}
           >
-            {snapshotsData.snapshots.map((snap: any) => (
+            {snapshotsData.snapshots.map((snap) => (
               <option key={snap.id} value={snap.id}>
                 {snap.id} - {snap.label || 'No label'}
               </option>
@@ -60,10 +61,10 @@ export default function Findings() {
           </select>
         </div>
       )}
-      
+
       {loading && <div className="loading">Loading findings...</div>}
       {error && <div className="error">Error: {error.message}</div>}
-      
+
       {findings.length > 0 && (
         <table className="findings-table">
           <thead>
@@ -76,7 +77,7 @@ export default function Findings() {
             </tr>
           </thead>
           <tbody>
-            {findings.map((finding: any) => (
+            {findings.map((finding) => (
               <tr key={finding.id}>
                 <td>{finding.ruleId}</td>
                 <td className={`severity-${finding.severity}`}>{finding.severity}</td>
@@ -90,11 +91,10 @@ export default function Findings() {
           </tbody>
         </table>
       )}
-      
+
       {selectedSnapshot && findings.length === 0 && !loading && (
         <div>No findings for this snapshot</div>
       )}
     </div>
   )
 }
-
