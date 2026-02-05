@@ -10,6 +10,12 @@ import (
 	"gonum.org/v1/gonum/graph/traverse"
 )
 
+// Default values for graph operations
+const (
+	DefaultMaxHops  = 8
+	DefaultBFSDepth = 3
+)
+
 // Graph wraps a directed multigraph with node/edge management
 type Graph struct {
 	g         *simple.DirectedGraph
@@ -184,7 +190,7 @@ func (g *Graph) ShortestPath(fromID, toID string, maxHops int) ([]ingest.Node, [
 	}
 
 	if maxHops <= 0 {
-		maxHops = 8
+		maxHops = DefaultMaxHops
 	}
 
 	// Use BFS to find shortest path
@@ -226,7 +232,7 @@ func (g *Graph) BFS(startID string, maxDepth int) ([]ingest.Node, error) {
 	}
 
 	if maxDepth <= 0 {
-		maxDepth = 3
+		maxDepth = DefaultBFSDepth
 	}
 
 	visited := make(map[int64]bool)

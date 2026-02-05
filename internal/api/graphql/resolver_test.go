@@ -18,7 +18,7 @@ type mockStore struct {
 	snapshots  []store.Snapshot
 	nodes      map[string]map[string]*ingest.Node // snapshotID -> nodeID -> Node
 	edges      map[string][]ingest.Edge           // snapshotID -> edges
-	principals map[string][]ingest.Node            // snapshotID -> matching nodes
+	principals map[string][]ingest.Node           // snapshotID -> matching nodes
 	graph      *graph.Graph
 }
 

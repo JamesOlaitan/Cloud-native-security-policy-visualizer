@@ -3,7 +3,6 @@ package graphql
 import (
 	"context"
 	"fmt"
-	"strings"
 	"sync"
 
 	"github.com/jamesolaitan/accessgraph/internal/config"
@@ -75,6 +74,13 @@ func NewResolver(store DataStore, cfg *config.Config) *Resolver {
 	}
 }
 
+// Default values for query parameters
+const (
+	DefaultMaxHops      = 8
+	DefaultSearchLimit  = 10
+	DefaultRecommendCap = 20
+)
+
 // loadGraph loads a graph from cache or store, caching the result.
 func (r *Resolver) loadGraph(ctx context.Context, snapshotID string) (*graph.Graph, error) {
 	if g, ok := r.cache.get(snapshotID); ok {
@@ -90,6 +96,19 @@ func (r *Resolver) loadGraph(ctx context.Context, snapshotID string) (*graph.Gra
 	return g, nil
 }
 
+// getLatestSnapshotID retrieves the most recent snapshot ID from the store.
+// Returns an error if no snapshots exist.
+func (r *Resolver) getLatestSnapshotID(ctx context.Context) (string, error) {
+	snapshots, err := r.store.ListSnapshots(ctx)
+	if err != nil {
+		return "", err
+	}
+	if len(snapshots) == 0 {
+		return "", fmt.Errorf("no snapshots found")
+	}
+	return snapshots[0].ID, nil
+}
+
 // Query returns the query resolver
 func (r *Resolver) Query() QueryResolver {
 	return &queryResolver{r}
@@ -99,18 +118,13 @@ type queryResolver struct{ *Resolver }
 
 // SearchPrincipals searches for principal nodes
 func (r *queryResolver) SearchPrincipals(ctx context.Context, query string, limit *int) ([]*Node, error) {
-	// Get the most recent snapshot
-	snapshots, err := r.store.ListSnapshots(ctx)
+	snapshotID, err := r.getLatestSnapshotID(ctx)
 	if err != nil {
-		return nil, err
-	}
-	if len(snapshots) == 0 {
+		// Return empty list instead of error for no snapshots
 		return []*Node{}, nil
 	}
 
-	snapshotID := snapshots[0].ID
-
-	l := 10
+	l := DefaultSearchLimit
 	if limit != nil && *limit > 0 {
 		l = *limit
 	}
@@ -130,16 +144,10 @@ func (r *queryResolver) SearchPrincipals(ctx context.Context, query string, limi
 
 // Node retrieves a single node with its neighbors
 func (r *queryResolver) Node(ctx context.Context, id string) (*Node, error) {
-	// Get the most recent snapshot
-	snapshots, err := r.store.ListSnapshots(ctx)
+	snapshotID, err := r.getLatestSnapshotID(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if len(snapshots) == 0 {
-		return nil, fmt.Errorf("no snapshots found")
-	}
-
-	snapshotID := snapshots[0].ID
 
 	node, err := r.store.GetNode(ctx, snapshotID, id)
 	if err != nil {
@@ -174,23 +182,17 @@ func (r *queryResolver) Node(ctx context.Context, id string) (*Node, error) {
 
 // ShortestPath finds the shortest path between two nodes
 func (r *queryResolver) ShortestPath(ctx context.Context, from string, to string, maxHops *int) (*Path, error) {
-	// Get the most recent snapshot
-	snapshots, err := r.store.ListSnapshots(ctx)
+	snapshotID, err := r.getLatestSnapshotID(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if len(snapshots) == 0 {
-		return nil, fmt.Errorf("no snapshots found")
-	}
-
-	snapshotID := snapshots[0].ID
 
 	g, err := r.loadGraph(ctx, snapshotID)
 	if err != nil {
 		return nil, err
 	}
 
-	hops := 8
+	hops := DefaultMaxHops
 	if maxHops != nil && *maxHops > 0 {
 		hops = *maxHops
 	}
@@ -298,13 +300,11 @@ func (r *queryResolver) SnapshotDiff(ctx context.Context, a string, b string) (*
 	edgeMapB := make(map[string]ingest.Edge)
 
 	for _, edge := range edgesA {
-		key := edgeKey(edge)
-		edgeMapA[key] = edge
+		edgeMapA[edge.Key()] = edge
 	}
 
 	for _, edge := range edgesB {
-		key := edgeKey(edge)
-		edgeMapB[key] = edge
+		edgeMapB[edge.Key()] = edge
 	}
 
 	// Find added and removed edges
@@ -358,31 +358,21 @@ func nodeToGraphQL(node ingest.Node) *Node {
 	}
 }
 
-func edgeKey(edge ingest.Edge) string {
-	return strings.Join([]string{edge.Src, edge.Dst, edge.Kind}, "|")
-}
-
 // ============ Phase 2 Resolvers ============
 
 // AttackPath finds an attack path from a principal to a resource
 func (r *queryResolver) AttackPath(ctx context.Context, from string, to *string, tags []string, maxHops *int) (*Path, error) {
-	// Get the most recent snapshot
-	snapshots, err := r.store.ListSnapshots(ctx)
+	snapshotID, err := r.getLatestSnapshotID(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if len(snapshots) == 0 {
-		return nil, fmt.Errorf("no snapshots found")
-	}
-
-	snapshotID := snapshots[0].ID
 
 	g, err := r.loadGraph(ctx, snapshotID)
 	if err != nil {
 		return nil, err
 	}
 
-	hops := 8
+	hops := DefaultMaxHops
 	if maxHops != nil && *maxHops > 0 {
 		hops = *maxHops
 	}
@@ -430,7 +420,7 @@ func (r *queryResolver) Recommend(ctx context.Context, snapshotID string, policy
 
 	recommender := reco.New(g)
 
-	capVal := 20
+	capVal := DefaultRecommendCap
 	if cap != nil && *cap > 0 {
 		capVal = *cap
 	}
@@ -474,16 +464,10 @@ func (r *queryResolver) ExportCypher(ctx context.Context, snapshotID string) (*E
 
 // ExportMarkdownAttackPath exports an attack path as Markdown
 func (r *queryResolver) ExportMarkdownAttackPath(ctx context.Context, from string, to string) (*Export, error) {
-	// Get the most recent snapshot
-	snapshots, err := r.store.ListSnapshots(ctx)
+	snapshotID, err := r.getLatestSnapshotID(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if len(snapshots) == 0 {
-		return nil, fmt.Errorf("no snapshots found")
-	}
-
-	snapshotID := snapshots[0].ID
 
 	g, err := r.loadGraph(ctx, snapshotID)
 	if err != nil {
@@ -491,7 +475,7 @@ func (r *queryResolver) ExportMarkdownAttackPath(ctx context.Context, from strin
 	}
 
 	// Find the attack path
-	result, err := g.FindAttackPath(from, to, nil, 8)
+	result, err := g.FindAttackPath(from, to, nil, DefaultMaxHops)
 	if err != nil {
 		return nil, err
 	}
@@ -514,16 +498,10 @@ func (r *queryResolver) ExportMarkdownAttackPath(ctx context.Context, from strin
 
 // ExportSarifAttackPath exports an attack path as SARIF
 func (r *queryResolver) ExportSarifAttackPath(ctx context.Context, from string, to string) (*Export, error) {
-	// Get the most recent snapshot
-	snapshots, err := r.store.ListSnapshots(ctx)
+	snapshotID, err := r.getLatestSnapshotID(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if len(snapshots) == 0 {
-		return nil, fmt.Errorf("no snapshots found")
-	}
-
-	snapshotID := snapshots[0].ID
 
 	g, err := r.loadGraph(ctx, snapshotID)
 	if err != nil {
@@ -531,7 +509,7 @@ func (r *queryResolver) ExportSarifAttackPath(ctx context.Context, from string, 
 	}
 
 	// Find the attack path
-	result, err := g.FindAttackPath(from, to, nil, 8)
+	result, err := g.FindAttackPath(from, to, nil, DefaultMaxHops)
 	if err != nil {
 		return nil, err
 	}

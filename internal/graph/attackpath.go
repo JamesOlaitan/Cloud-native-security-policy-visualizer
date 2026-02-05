@@ -19,7 +19,7 @@ type AttackPathResult struct {
 // If toID is empty and tags includes "sensitive", it finds the nearest sensitive resource
 func (g *Graph) FindAttackPath(fromID, toID string, tags []string, maxHops int) (*AttackPathResult, error) {
 	if maxHops <= 0 {
-		maxHops = 8
+		maxHops = DefaultMaxHops
 	}
 
 	// Validate source node exists

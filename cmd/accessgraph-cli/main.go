@@ -17,6 +17,12 @@ import (
 	"github.com/jamesolaitan/accessgraph/internal/store"
 )
 
+// Default values for CLI parameters
+const (
+	defaultMaxHops      = 8
+	defaultRecommendCap = 20
+)
+
 func main() {
 	log.SetOutput(&redactlog.RedactWriter{Out: os.Stderr})
 
@@ -125,18 +131,16 @@ func handleSnapshots(ctx context.Context, cfg *config.Config) {
 			log.Fatalf("Failed to get edges for %s: %v", *idB, err)
 		}
 
-		// Create edge maps
+		// Create edge maps using consistent key generation
 		edgeMapA := make(map[string]bool)
 		edgeMapB := make(map[string]bool)
 
 		for _, e := range edgesA {
-			key := fmt.Sprintf("%s->%s:%s", e.Src, e.Dst, e.Kind)
-			edgeMapA[key] = true
+			edgeMapA[e.Key()] = true
 		}
 
 		for _, e := range edgesB {
-			key := fmt.Sprintf("%s->%s:%s", e.Src, e.Dst, e.Kind)
-			edgeMapB[key] = true
+			edgeMapB[e.Key()] = true
 		}
 
 		// Find added and removed
@@ -285,7 +289,7 @@ func handleGraphPath(ctx context.Context, cfg *config.Config) {
 		log.Fatalf("Failed to load snapshot: %v", err)
 	}
 
-	nodes, edges, err := g.ShortestPath(*from, *to, 8)
+	nodes, edges, err := g.ShortestPath(*from, *to, defaultMaxHops)
 	if err != nil {
 		log.Fatalf("Failed to find path: %v", err)
 	}
@@ -349,7 +353,7 @@ func handleAttackPath(ctx context.Context, cfg *config.Config) {
 	from := fs.String("from", "", "Source principal ID")
 	to := fs.String("to", "", "Destination resource ID (optional with --tag)")
 	tag := fs.String("tag", "", "Tag filter (e.g., 'sensitive')")
-	maxHops := fs.Int("max-hops", 8, "Maximum hops")
+	maxHops := fs.Int("max-hops", defaultMaxHops, "Maximum hops")
 	outMD := fs.String("out", "", "Output Markdown file")
 	outSARIF := fs.String("sarif", "", "Output SARIF file")
 	formatFlag := fs.String("format", "table", "Output format (table|json)")
@@ -401,6 +405,12 @@ func handleAttackPath(ctx context.Context, cfg *config.Config) {
 		os.Exit(0)
 	}
 
+	// Determine effective target ID (from flag or last node in path)
+	targetID := *to
+	if targetID == "" && len(result.Nodes) > 0 {
+		targetID = result.Nodes[len(result.Nodes)-1].ID
+	}
+
 	// Display path
 	if *formatFlag == "json" {
 		enc := json.NewEncoder(os.Stdout)
@@ -414,10 +424,6 @@ func handleAttackPath(ctx context.Context, cfg *config.Config) {
 			log.Fatalf("Failed to encode output: %v", err)
 		}
 	} else {
-		targetID := *to
-		if targetID == "" && len(result.Nodes) > 0 {
-			targetID = result.Nodes[len(result.Nodes)-1].ID
-		}
 		fmt.Printf("Attack Path: %s → %s (hops: %d)\n\n", *from, targetID, len(result.Nodes)-1)
 
 		for i, node := range result.Nodes {
@@ -430,10 +436,6 @@ func handleAttackPath(ctx context.Context, cfg *config.Config) {
 
 	// Export to Markdown if requested
 	if *outMD != "" {
-		targetID := *to
-		if targetID == "" && len(result.Nodes) > 0 {
-			targetID = result.Nodes[len(result.Nodes)-1].ID
-		}
 		markdown, err := graph.ExportMarkdownAttackPath(*from, targetID, result.Nodes, result.Edges)
 		if err != nil {
 			log.Fatalf("Failed to export Markdown: %v", err)
@@ -448,10 +450,6 @@ func handleAttackPath(ctx context.Context, cfg *config.Config) {
 
 	// Export to SARIF if requested
 	if *outSARIF != "" {
-		targetID := *to
-		if targetID == "" && len(result.Nodes) > 0 {
-			targetID = result.Nodes[len(result.Nodes)-1].ID
-		}
 		sarif, err := graph.ExportSARIFAttackPath(*from, targetID, result.Nodes, result.Edges)
 		if err != nil {
 			log.Fatalf("Failed to export SARIF: %v", err)
@@ -471,7 +469,7 @@ func handleRecommend(ctx context.Context, cfg *config.Config) {
 	policyID := fs.String("policy", "", "Policy ID")
 	target := fs.String("target", "", "Target resource ID (optional with --tag)")
 	tag := fs.String("tag", "", "Tag filter (e.g., 'sensitive')")
-	cap := fs.Int("cap", 20, "Maximum suggestions")
+	cap := fs.Int("cap", defaultRecommendCap, "Maximum suggestions")
 	outFile := fs.String("out", "", "Output JSON file")
 	formatFlag := fs.String("format", "table", "Output format (table|json)")
 	if err := fs.Parse(os.Args[2:]); err != nil {

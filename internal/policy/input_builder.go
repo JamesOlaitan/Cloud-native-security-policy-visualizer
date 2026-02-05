@@ -118,4 +118,3 @@ func BuildInput(g *graph.Graph) map[string]interface{} {
 
 	return input
 }
-

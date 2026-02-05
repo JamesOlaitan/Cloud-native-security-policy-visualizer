@@ -11,7 +11,6 @@ const (
 	KindResource  Kind = "RESOURCE"
 	KindNS        Kind = "NAMESPACE"
 	KindAccount   Kind = "ACCOUNT"
-
 )
 
 // Node represents a graph node
@@ -51,4 +50,10 @@ type ParseResult struct {
 func (pr *ParseResult) Merge(other ParseResult) {
 	pr.Nodes = append(pr.Nodes, other.Nodes...)
 	pr.Edges = append(pr.Edges, other.Edges...)
+}
+
+// Key returns a unique string key for edge comparison in diffs.
+// Format: "src|dst|kind"
+func (e Edge) Key() string {
+	return e.Src + "|" + e.Dst + "|" + e.Kind
 }

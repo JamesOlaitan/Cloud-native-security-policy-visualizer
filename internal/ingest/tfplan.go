@@ -162,4 +162,3 @@ func parseTFPolicy(address, policyJSON string) ParseResult {
 
 	return result
 }
-
