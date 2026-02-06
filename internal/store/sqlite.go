@@ -127,22 +127,25 @@ func (s *Store) LoadSnapshot(ctx context.Context, id string) (*graph.Graph, erro
 		var labelsJSON, propsJSON string
 		var kind string
 
-		if err := rows.Scan(&node.ID, &kind, &labelsJSON, &propsJSON); err != nil {
-			return nil, err
+		scanErr := rows.Scan(&node.ID, &kind, &labelsJSON, &propsJSON)
+		if scanErr != nil {
+			return nil, scanErr
 		}
 
 		node.Kind = ingest.Kind(kind)
-		if err := json.Unmarshal([]byte(labelsJSON), &node.Labels); err != nil {
-			return nil, fmt.Errorf("unmarshaling labels for node %s: %w", node.ID, err)
+		unmarshalErr := json.Unmarshal([]byte(labelsJSON), &node.Labels)
+		if unmarshalErr != nil {
+			return nil, fmt.Errorf("unmarshaling labels for node %s: %w", node.ID, unmarshalErr)
 		}
-		if err := json.Unmarshal([]byte(propsJSON), &node.Props); err != nil {
-			return nil, fmt.Errorf("unmarshaling props for node %s: %w", node.ID, err)
+		propsErr := json.Unmarshal([]byte(propsJSON), &node.Props)
+		if propsErr != nil {
+			return nil, fmt.Errorf("unmarshaling props for node %s: %w", node.ID, propsErr)
 		}
 
 		g.AddNode(node)
 	}
-	if err := rows.Err(); err != nil {
-		return nil, err
+	if rowsErr := rows.Err(); rowsErr != nil {
+		return nil, rowsErr
 	}
 
 	// Load edges (ordered for determinism)

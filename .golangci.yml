@@ -1,45 +1,46 @@
 # golangci-lint configuration
-# Version: 1.61+ compatible
+# Version: v2 format (golangci-lint 2.x)
+version: "2"
 
 linters:
+  default: none
   enable:
     - govet
     - errcheck
     - staticcheck
     - unused
-    - gosimple
     - ineffassign
-    - gofmt
-    - goimports
     - misspell
     - revive
-  # Note: typecheck is NOT enabled - Go compiler handles type checking
-  # This avoids false positives from dependency version mismatches
 
-linters-settings:
-  govet:
-    enable:
-      - shadow
-  gofmt:
-    simplify: true
-  revive:
-    confidence: 0.8
+  settings:
+    govet:
+      enable:
+        - shadow
+    revive:
+      confidence: 0.8
 
-issues:
-  exclude-use-default: true
-  exclude-dirs:
-    - vendor
-    - ui
-    - deployments
-  max-issues-per-linter: 0
-  max-same-issues: 0
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - errcheck
-    - path: cmd/
-      linters:
-        - revive
+  exclusions:
+    presets:
+      - std-error-handling
+      - common-false-positives
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+      - path: cmd/
+        linters:
+          - revive
+    paths:
+      - vendor
+      - ui
+      - deployments
+      - third_party
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
 
 run:
   timeout: 5m

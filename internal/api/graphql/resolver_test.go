@@ -222,7 +222,7 @@ func TestLoadGraph_CacheHit(t *testing.T) {
 		graph:     g,
 		loadCount: &callCount,
 	}
-	ms.mockStore.snapshots = []store.Snapshot{defaultSnapshot()}
+	ms.snapshots = []store.Snapshot{defaultSnapshot()}
 
 	r := newTestResolver(ms, &mockEvaluator{})
 

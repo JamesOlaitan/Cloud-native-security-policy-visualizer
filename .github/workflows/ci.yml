@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: ['1.23.x', '1.24.x']
+        go-version: ['1.24.x']
     
     steps:
     - name: Checkout code
@@ -34,12 +34,10 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-go-
     
-    - name: Install golangci-lint
-      run: |
-        curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.61.0
-    
     - name: Run linter
-      run: golangci-lint run
+      uses: golangci/golangci-lint-action@v6
+      with:
+        version: v2.8.0
     
     - name: Install gosec
       run: go install github.com/securego/gosec/v2/cmd/gosec@latest
@@ -177,11 +175,11 @@ jobs:
       with:
         node-version: '18'
         cache: 'npm'
-        cache-dependency-path: ui/package.json
+        cache-dependency-path: ui/package-lock.json
     
     - name: Install dependencies
       working-directory: ui
-      run: npm install
+      run: npm ci
     
     - name: Build UI
       working-directory: ui
@@ -304,4 +302,3 @@ jobs:
         files: |
           bin/*
           deployments/helm/accessgraph/README.md
-

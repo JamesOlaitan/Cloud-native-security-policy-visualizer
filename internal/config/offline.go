@@ -52,7 +52,7 @@ func isRFC1918External(host string) bool {
 	}
 
 	// Check if it's private/local (RFC1918, loopback, etc.)
-	return !(ip.IsLoopback() || ip.IsPrivate())
+	return !ip.IsLoopback() && !ip.IsPrivate()
 }
 
 func isLocalhost(host string) bool {
