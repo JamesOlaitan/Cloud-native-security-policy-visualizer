@@ -6,6 +6,7 @@ require (
 	github.com/99designs/gqlgen v0.17.45
 	github.com/go-chi/chi/v5 v5.0.12
 	github.com/go-chi/cors v1.2.1
+	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/vektah/gqlparser/v2 v2.5.11
 	gonum.org/v1/gonum v0.15.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -18,7 +19,6 @@ require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/websocket v1.5.1 // indirect
-	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/ncruces/go-strftime v0.1.9 // indirect

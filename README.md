@@ -170,19 +170,22 @@ docker compose up --build
 
 **Verify Everything Works:**
 
-Navigate to http://localhost:8080/ - you should see GraphQL Playground. Try this query:
+Test the API with curl:
 
-```graphql
-query {
-  snapshots {
-    id
-    createdAt
-    label
-  }
-}
+```bash
+# Check API health
+curl http://localhost:8080/healthz
+# Expected: OK
+
+# Query snapshots via GraphQL
+curl -s -X POST http://localhost:8080/query \
+  -H "Content-Type: application/json" \
+  -d '{"query": "{ snapshots { id createdAt } }"}' | jq
 ```
 
 Expected response: Two snapshots (`demo1`, `demo2`) with timestamps.
+
+> **Note**: GraphQL Playground is disabled by default for security. To enable it for development, set `DEV=true` in `docker-compose.yml` and restart.
 
 ### 5. Use the UI
 

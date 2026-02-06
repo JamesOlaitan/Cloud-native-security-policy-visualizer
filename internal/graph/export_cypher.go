@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/jamesolaitan/accessgraph/internal/ingest"
 )
@@ -119,27 +120,29 @@ type edgeWithIndex struct {
 
 // sanitizeLabel removes invalid characters from Neo4j labels
 func sanitizeLabel(label string) string {
-	// Replace invalid characters with underscore
-	result := ""
+	var b strings.Builder
+	b.Grow(len(label))
 	for _, ch := range label {
 		if (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '_' {
-			result += string(ch)
+			b.WriteRune(ch)
 		} else {
-			result += "_"
+			b.WriteByte('_')
 		}
 	}
-	return result
+	return b.String()
 }
 
 // quoteString properly quotes a string for Cypher
 func quoteString(s string) string {
-	// Escape quotes and backslashes
-	escaped := ""
+	var b strings.Builder
+	b.Grow(len(s) + 2)
+	b.WriteByte('"')
 	for _, ch := range s {
 		if ch == '"' || ch == '\\' {
-			escaped += "\\"
+			b.WriteByte('\\')
 		}
-		escaped += string(ch)
+		b.WriteRune(ch)
 	}
-	return fmt.Sprintf(`"%s"`, escaped)
+	b.WriteByte('"')
+	return b.String()
 }

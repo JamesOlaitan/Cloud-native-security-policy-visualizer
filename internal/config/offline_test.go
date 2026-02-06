@@ -87,7 +87,7 @@ func TestIMDSBlocking(t *testing.T) {
 				} else if !strings.Contains(err.Error(), "IMDS") && !strings.Contains(err.Error(), "security") {
 					t.Errorf("expected IMDS/security error, got: %v", err)
 				}
-			} else if tt.blockIMDS == false && tt.url == "http://169.254.169.254/latest/meta-data/" {
+			} else if !tt.blockIMDS && tt.url == "http://169.254.169.254/latest/meta-data/" {
 				// This case is for testing the logic, not production behavior
 				// We expect no IMDS-specific error (but connection may still fail)
 				if err != nil && (strings.Contains(err.Error(), "IMDS") || strings.Contains(err.Error(), "security")) {

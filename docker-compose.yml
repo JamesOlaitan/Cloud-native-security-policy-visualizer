@@ -21,7 +21,7 @@ services:
       - OPA_URL=http://opa:8181/v1/data/accessgraph
       - SQLITE_PATH=/data/graph.db
       - PORT=8080
-      - DEV=true
+      - DEV=false
     volumes:
       - ./data:/data
       - ./sample:/sample:ro

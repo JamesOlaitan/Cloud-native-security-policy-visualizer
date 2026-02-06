@@ -119,7 +119,7 @@ func analyzePathRisks(nodes []ingest.Node, edges []ingest.Edge) []string {
 	// Check for wildcards
 	for _, edge := range edges {
 		if val, ok := edge.Props["action"]; ok {
-			if val == "*" || len(val) > 2 && val[len(val)-2:] == ":*" {
+			if val == "*" || (len(val) > 2 && val[len(val)-2:] == ":*") {
 				risks = append(risks, "**Wildcard permissions detected** - overly permissive policy")
 				break
 			}

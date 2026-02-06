@@ -48,7 +48,6 @@ ui/dist/
 ui/build/
 ui/.vite/
 ui/yarn.lock
-ui/package-lock.json
 
 # Docker volumes
 data/

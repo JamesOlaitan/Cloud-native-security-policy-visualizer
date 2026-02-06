@@ -3,8 +3,8 @@ package graphql
 import (
 	"context"
 	"fmt"
-	"sync"
 
+	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/jamesolaitan/accessgraph/internal/config"
 	"github.com/jamesolaitan/accessgraph/internal/graph"
 	"github.com/jamesolaitan/accessgraph/internal/ingest"
@@ -30,30 +30,26 @@ type PolicyEvaluator interface {
 	Evaluate(ctx context.Context, input map[string]interface{}) ([]policy.Finding, error)
 }
 
-// graphCache provides a simple in-memory cache for loaded graphs keyed by
-// snapshot ID. This avoids reloading from the database on every query.
+// graphCache provides a bounded in-memory LRU cache for loaded graphs keyed by
+// snapshot ID. This avoids reloading from the database on every query while
+// preventing unbounded memory growth.
+const maxCachedGraphs = 16
+
 type graphCache struct {
-	mu     sync.RWMutex
-	graphs map[string]*graph.Graph
+	cache *lru.Cache[string, *graph.Graph]
 }
 
 func newGraphCache() *graphCache {
-	return &graphCache{
-		graphs: make(map[string]*graph.Graph),
-	}
+	c, _ := lru.New[string, *graph.Graph](maxCachedGraphs)
+	return &graphCache{cache: c}
 }
 
 func (c *graphCache) get(snapshotID string) (*graph.Graph, bool) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	g, ok := c.graphs[snapshotID]
-	return g, ok
+	return c.cache.Get(snapshotID)
 }
 
 func (c *graphCache) set(snapshotID string, g *graph.Graph) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.graphs[snapshotID] = g
+	c.cache.Add(snapshotID, g)
 }
 
 // Resolver is the root GraphQL resolver

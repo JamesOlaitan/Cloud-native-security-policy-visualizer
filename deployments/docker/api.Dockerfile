@@ -1,4 +1,4 @@
-FROM golang:1.24-alpine AS builder
+FROM golang:1.24.0-alpine AS builder
 
 WORKDIR /app
 
@@ -16,18 +16,18 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o accessgraph-api ./cmd/accessgraph-api
 
 # Final stage
-FROM alpine:latest
+FROM alpine:3.19
 
-RUN apk --no-cache add ca-certificates
+RUN apk --no-cache add ca-certificates wget && \
+    addgroup -S appgroup && adduser -S appuser -G appgroup
 
-WORKDIR /root/
+WORKDIR /home/appuser
 
 COPY --from=builder /app/accessgraph-api .
 
-EXPOSE 8080
+USER appuser
 
-# Add healthcheck using wget (already in alpine)
-RUN apk --no-cache add wget
+EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:8080/healthz || exit 1

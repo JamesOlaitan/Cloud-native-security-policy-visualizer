@@ -341,7 +341,7 @@ func handleGraphExport(ctx context.Context, cfg *config.Config) {
 		log.Fatalf("Unknown format: %s", *format)
 	}
 
-	if err := os.WriteFile(*outFile, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(*outFile, []byte(content), 0o600); err != nil {
 		log.Fatalf("Failed to write file: %v", err)
 	}
 
@@ -441,7 +441,7 @@ func handleAttackPath(ctx context.Context, cfg *config.Config) {
 			log.Fatalf("Failed to export Markdown: %v", err)
 		}
 
-		if err := os.WriteFile(*outMD, []byte(markdown), 0644); err != nil {
+		if err := os.WriteFile(*outMD, []byte(markdown), 0o600); err != nil {
 			log.Fatalf("Failed to write Markdown file: %v", err)
 		}
 
@@ -455,7 +455,7 @@ func handleAttackPath(ctx context.Context, cfg *config.Config) {
 			log.Fatalf("Failed to export SARIF: %v", err)
 		}
 
-		if err := os.WriteFile(*outSARIF, []byte(sarif), 0644); err != nil {
+		if err := os.WriteFile(*outSARIF, []byte(sarif), 0o600); err != nil {
 			log.Fatalf("Failed to write SARIF file: %v", err)
 		}
 
@@ -513,7 +513,7 @@ func handleRecommend(ctx context.Context, cfg *config.Config) {
 		}
 
 		if *outFile != "" {
-			if err := os.WriteFile(*outFile, data, 0644); err != nil {
+			if err := os.WriteFile(*outFile, data, 0o600); err != nil {
 				log.Fatalf("Failed to write file: %v", err)
 			}
 			fmt.Printf("Recommendation saved to: %s\n", *outFile)

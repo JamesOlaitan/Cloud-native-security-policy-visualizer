@@ -68,12 +68,12 @@ func (c *Client) Evaluate(ctx context.Context, input map[string]interface{}) ([]
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(resp.Body)
+		bodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 		return nil, fmt.Errorf("OPA returned status %d: %s", resp.StatusCode, string(bodyBytes))
 	}
 
 	var opaResp OPAResponse
-	if err := json.NewDecoder(resp.Body).Decode(&opaResp); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 10<<20)).Decode(&opaResp); err != nil {
 		return nil, fmt.Errorf("decoding response: %w", err)
 	}
 

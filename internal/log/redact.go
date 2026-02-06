@@ -62,16 +62,16 @@ func NewRedactedLogger(out io.Writer, prefix string, flag int) *stdlog.Logger {
 
 // Printf logs a formatted message with redaction applied.
 func Printf(format string, v ...interface{}) {
-	stdlog.Output(2, Redact(fmt.Sprintf(format, v...)))
+	_ = stdlog.Output(2, Redact(fmt.Sprintf(format, v...)))
 }
 
 // Println logs a message with redaction applied.
 func Println(v ...interface{}) {
-	stdlog.Output(2, Redact(fmt.Sprintln(v...)))
+	_ = stdlog.Output(2, Redact(fmt.Sprintln(v...)))
 }
 
 // Fatalf logs a fatal message with redaction applied.
 func Fatalf(format string, v ...interface{}) {
-	stdlog.Output(2, Redact(fmt.Sprintf(format, v...)))
+	_ = stdlog.Output(2, Redact(fmt.Sprintf(format, v...)))
 	panic(Redact(fmt.Sprintf(format, v...)))
 }

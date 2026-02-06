@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/99designs/gqlgen/graphql/handler/extension"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -85,8 +86,12 @@ func main() {
 		r.Use(cors.Handler(corsOptions))
 	}
 
+	// Security headers
+	r.Use(securityHeaders)
+
 	// GraphQL endpoint
 	srv := handler.NewDefaultServer(graphql.NewExecutableSchema(graphql.Config{Resolvers: resolver}))
+	srv.Use(extension.FixedComplexityLimit(200))
 	r.Handle("/query", srv)
 
 	// GraphQL Playground is only available in development mode to avoid
@@ -196,6 +201,15 @@ func metricsHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "# HELP accessgraph_info Service information\n")
 	fmt.Fprintf(w, "# TYPE accessgraph_info gauge\n")
 	fmt.Fprintf(w, "accessgraph_info{version=\"1.1.0\"} 1\n")
+}
+
+func securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		next.ServeHTTP(w, r)
+	})
 }
 
 func requestSizeLimiter(maxBytes int64) func(next http.Handler) http.Handler {
